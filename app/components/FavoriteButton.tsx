@@ -2,24 +2,25 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { toggleFavorite } from "@/app/actions"; // Az önce oluşturduk
-import { supabase } from "@/lib/supabase";
+import { toggleFavorite } from "@/app/actions";
+import { createClient } from "@/lib/supabase/client"; // <--- 1. DOĞRU İMPORT BU
 
-export default function FavoriteButton({ mangaId }: { mangaId: string }) {
+export default function FavoriteButton({ mangaId, slug }: { mangaId: string, slug: string }) {
   const router = useRouter();
   const [isFav, setIsFav] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
-  // Sayfa açılınca: Kullanıcı giriş yapmış mı ve bu manga favori mi?
+  // 2. Client'ı bileşen içinde oluşturuyoruz
+  const supabase = createClient();
+
   useEffect(() => {
     const checkUser = async () => {
-      // 1. Oturumu kontrol et
+      // Artık doğru çerezleri okuyabilir
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
         setUserId(session.user.id);
-        // 2. Eğer giriş yapmışsa, favori durumunu kontrol et
         const { data } = await supabase
           .from("favorites")
           .select("*")
@@ -33,22 +34,19 @@ export default function FavoriteButton({ mangaId }: { mangaId: string }) {
     };
     
     checkUser();
-  }, [mangaId]);
+  }, [mangaId, supabase]);
 
   const handleClick = async () => {
-    // --- KRİTİK NOKTA: GİRİŞ KONTROLÜ ---
+    // Eğer kullanıcı yoksa login'e at
     if (!userId) {
-      // Giriş yapmamışsa login sayfasına at
-      // "returnUrl" parametresi ekliyoruz ki giriş yapınca buraya geri dönsün
-      router.push(`/login?returnUrl=/manga/${mangaId}`); 
+      router.push(`/login?returnUrl=/manga/${slug}`); 
       return;
     }
 
-    // Giriş yapmışsa işlemi yap
-    // (UI'ı hemen güncelle - Optimistic UI)
+    // Varsa işlemi yap
     const newState = !isFav;
-    setIsFav(newState); 
-
+    setIsFav(newState); // Hızlı tepki (Optimistic UI)
+    
     await toggleFavorite(mangaId, userId);
   };
 

@@ -1,9 +1,31 @@
 import Link from "next/link";
 import SearchBar from "./SearchBar";
+import { createClient } from "@/lib/supabase/server"; // Server Client
+import { signOut } from "@/app/actions"; // Çıkış Yapma Fonksiyonu
 
-export default function Navbar() {
+export default async function Navbar() {
+  // 1. Supabase bağlantısını kur
+  const supabase = await createClient();
+  
+  // 2. Kullanıcıyı çek
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // 3. Eğer kullanıcı varsa, Profil tablosundan Avatarını da çek
+  let avatarUrl = null;
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("avatar_url")
+      .eq("id", user.id)
+      .single();
+      
+    avatarUrl = profile?.avatar_url;
+  }
+
   return (
     <nav className="w-full h-16 fixed top-0 left-0 z-50 border-b border-white/10 bg-black/70 backdrop-blur-md flex items-center justify-between px-6 transition-all">
+      
+      {/* --- SOL TARA: LOGO --- */}
       <Link href="/" className="flex items-center gap-2 group">
         <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold text-xl group-hover:rotate-12 transition">
           T
@@ -12,33 +34,69 @@ export default function Navbar() {
           Taluc<span className="text-green-500">Scans</span>
         </span>
       </Link>
-
+      
+      {/* --- SAĞ TARAF: ARAMA + BUTONLAR --- */}
       <div className="flex items-center gap-4">
+        
+        {/* 1. Arama Çubuğu */}
         <SearchBar />
 
-        {/* Kullanıcı Girişi Butonu */}
-        <Link
-          href="/login" // Henüz yapmadık ama yeri hazır olsun
-          className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-full text-sm font-medium transition text-gray-200 border border-white/10"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="16"
-            height="16"
-            fill="currentColor"
-            viewBox="0 0 16 16"
-          >
-            <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
-          </svg>
-          Giriş Yap
-        </Link>
+        {user ? (
+          // --- KULLANICI GİRİŞ YAPMIŞSA ---
+          <div className="flex items-center gap-4">
+             
+             {/* Sadece Admin Görür (Mailini buraya yaz!) */}
+             {user.email === process.env.ADMIN_EMAIL && (
+                <Link href="/admin" className="text-red-400 text-xs font-bold border border-red-400/30 px-2 py-1 rounded hover:bg-red-400/10 transition">
+                  ADMIN
+                </Link>
+             )}
 
-        <Link
-          href="/favorites"
-          className="text-gray-300 hover:text-white transition text-sm font-medium"
-        >
-          Kütüphanem
-        </Link>
+             {/* Kütüphanem Linki */}
+             <Link href="/favorites" className="hidden md:block text-gray-300 hover:text-white text-sm font-medium transition">
+                Kütüphanem
+             </Link>
+             
+             {/* Profil Avatarı */}
+             <Link 
+               href="/profile" 
+               className="relative w-9 h-9 rounded-md overflow-hidden border border-white/20 hover:border-green-500 transition group bg-gray-800"
+               title="Profil Ayarları"
+             >
+                {avatarUrl ? (
+                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                   // Avatar yoksa ismin baş harfi
+                   <div className="w-full h-full bg-green-700 flex items-center justify-center font-bold text-white text-sm">
+                      {user.email?.charAt(0).toUpperCase()}
+                   </div>
+                )}
+             </Link>
+             
+             {/* Çıkış Yap Butonu */}
+             <form action={signOut}>
+               <button className="text-gray-400 hover:text-white text-xs font-medium ml-1 transition">
+                 Çıkış
+               </button>
+             </form>
+          </div>
+        ) : (
+          // --- MİSAFİR KULLANICI İSE ---
+          <div className="flex items-center gap-3">
+            <Link 
+              href="/login" 
+              className="px-5 py-2 bg-green-600 hover:bg-green-500 rounded-full text-sm font-bold transition text-white shadow-lg shadow-green-900/20"
+            >
+              Giriş Yap
+            </Link>
+            <Link 
+              href="/register" 
+              className="hidden md:block text-gray-400 hover:text-white text-sm font-medium transition"
+            >
+              Kayıt Ol
+            </Link>
+          </div>
+        )}
       </div>
     </nav>
   );

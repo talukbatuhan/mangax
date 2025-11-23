@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import ReaderViewer from "@/app/components/ReaderViewer"; // Yeni bileşeni çağırdık
 
 interface PageProps {
-  params: Promise<{ 
-    slug: string; 
-    chapterNum: string; 
+  params: Promise<{
+    slug: string;
+    chapterNum: string;
   }>;
 }
 
@@ -49,13 +49,15 @@ export default async function ChapterPage({ params }: PageProps) {
 
   // --- HTML DÖNDÜRMÜYORUZ, BİLEŞENE VERİ GÖNDERİYORUZ ---
   return (
-    <ReaderViewer 
+    <ReaderViewer
       images={chapter.images || []}
       prevChapter={prevChapter}
       nextChapter={nextChapter}
       mangaTitle={manga.title}
       chapterNum={currentChapterNum}
       slug={slug}
+      mangaId={manga.id}
+      chapterId={chapter.id}
     />
   );
 }

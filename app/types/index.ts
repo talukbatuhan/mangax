@@ -6,6 +6,7 @@ export interface Manga {
   cover_url: string | null;
   author: string | null;
   created_at: string;
+  genres: string[] | null; 
 }
 
 export interface Chapter {

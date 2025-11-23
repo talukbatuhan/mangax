@@ -1,22 +1,16 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  // --- BURAYI EKLE ---
-  experimental: {
-    serverActions: {
-      bodySizeLimit: '50mb', // Varsayılan limiti 50MB yapıyoruz
-    },
-  },
-  // -------------------
-  
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: process.env.NEXT_PUBLIC_SUPABASE_URL 
-          ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname 
-          : '**.supabase.co', // Hata almamak için genel bir yapı
-        port: '',
-        pathname: '/storage/v1/object/public/**',
+        hostname: '**.supabase.co', // Supabase resimleri için
+      },
+      // BUNU EKLEMEN GEREKİYOR:
+      {
+        protocol: 'https',
+        hostname: 'api.dicebear.com', // Avatar API'si için
       },
     ],
   },
