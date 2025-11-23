@@ -50,3 +50,15 @@ export async function deleteChapter(chapterId: string) {
   revalidatePath("/admin");
   revalidatePath("/");
 }
+
+export async function updateMangaGenres(mangaId: string, newGenres: string[]) {
+  const { error } = await supabase
+    .from("mangas")
+    .update({ genres: newGenres })
+    .eq("id", mangaId);
+
+  if (error) throw new Error("Türler güncellenemedi");
+  
+  revalidatePath("/admin");
+  revalidatePath("/");
+}

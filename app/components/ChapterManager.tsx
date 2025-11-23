@@ -1,39 +1,35 @@
 "use client";
 
 import { useState } from "react";
-import { getChapters, deleteChapter } from "@/app/admin/actions"; // Az önce yazdıklarımız
-import { Chapter } from "@/app/types"; // Tip tanımımız
+import { getChapters, deleteChapter } from "@/app/admin/actions";
+import { Chapter } from "@/app/types";
 
-// Bu bileşene manga listesini dışarıdan vereceğiz
 export default function ChapterManager({ mangas }: { mangas: { id: string | number, title: string }[] }) {
   const [selectedManga, setSelectedManga] = useState("");
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Hangi bölümün detayının açık olduğunu tutar
+  const [expandedChapter, setExpandedChapter] = useState<string | null>(null);
 
-  // Manga seçilince bölümleri çek
   const handleSelect = async (mangaId: string) => {
     setSelectedManga(mangaId);
+    setExpandedChapter(null); // Manga değişince detayı kapat
     if (!mangaId) {
       setChapters([]);
       return;
     }
-    
     setLoading(true);
     const data = await getChapters(mangaId);
-    // TypeScript hatası almamak için data'yı 'unknown' üzerinden 'Chapter[]'a zorluyoruz
     setChapters((data as unknown as Chapter[]) || []); 
     setLoading(false);
   };
 
-  // Bölüm Silme Fonksiyonu
   const handleDelete = async (chapterId: string) => {
-    if (!confirm("Sadece bu bölümü silmek istediğine emin misin?")) return;
-
+    if (!confirm("Bölümü silmek istediğine emin misin?")) return;
     try {
       await deleteChapter(chapterId);
-      // Listeden de görsel olarak kaldıralım
       setChapters(chapters.filter((c) => c.id !== chapterId));
-      alert("Bölüm silindi.");
     } catch (e) {
       alert("Hata oluştu.");
     }
@@ -41,42 +37,67 @@ export default function ChapterManager({ mangas }: { mangas: { id: string | numb
 
   return (
     <div className="bg-gray-900 p-6 rounded-xl border border-gray-800">
-      <h2 className="text-xl font-bold mb-4 text-purple-400">Bölüm Yönetimi</h2>
+      <h2 className="text-xl font-bold mb-4 text-purple-400">Bölüm ve Resim Kontrolü</h2>
       
-      {/* 1. Manga Seçimi */}
       <select 
-        className="w-full bg-gray-800 p-3 rounded border border-gray-700 mb-6 text-white"
+        className="w-full bg-gray-800 p-3 rounded border border-gray-700 mb-6 text-white outline-none"
         onChange={(e) => handleSelect(e.target.value)}
         value={selectedManga}
       >
-        <option value="">Bölümlerini görmek için Manga seç...</option>
+        <option value="">İncelenecek Mangayı Seç...</option>
         {mangas.map((m) => (
           <option key={m.id} value={m.id}>{m.title}</option>
         ))}
       </select>
 
-      {/* 2. Bölüm Listesi */}
-      <div className="space-y-2 max-h-96 overflow-y-auto">
+      <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
         {loading && <p className="text-gray-500 text-center">Yükleniyor...</p>}
         
-        {!loading && chapters.length === 0 && selectedManga && (
-            <p className="text-gray-500 text-center">Bu mangaya ait bölüm bulunamadı.</p>
-        )}
-
         {chapters.map((chapter) => (
-          <div key={chapter.id} className="flex justify-between items-center bg-gray-800 p-3 rounded hover:bg-gray-700 transition">
-            <div>
-              <span className="font-bold text-green-400 mr-2">#{chapter.chapter_number}</span>
-              <span className="text-sm text-gray-300">{chapter.title || "İsimsiz Bölüm"}</span>
-              <div className="text-xs text-gray-500 mt-1">ID: {chapter.id}</div>
+          <div key={chapter.id} className="bg-gray-800 rounded border border-gray-700 overflow-hidden">
+            {/* Bölüm Başlığı */}
+            <div className="p-3 flex justify-between items-center bg-gray-800 hover:bg-gray-700 transition">
+              <div className="flex items-center gap-3">
+                <span className="font-bold text-green-400">#{chapter.chapter_number}</span>
+                <span className="text-sm text-gray-300">{chapter.title || "İsimsiz"}</span>
+                <span className="text-xs text-gray-500">({chapter.images?.length || 0} Sayfa)</span>
+              </div>
+              
+              <div className="flex gap-2">
+                {/* DETAY BUTONU */}
+                <button 
+                  onClick={() => setExpandedChapter(expandedChapter === chapter.id ? null : chapter.id)}
+                  className="px-3 py-1 text-xs bg-blue-900 text-blue-200 rounded hover:bg-blue-800 transition"
+                >
+                  {expandedChapter === chapter.id ? "Gizle" : "Resimleri Gör"}
+                </button>
+
+                <button 
+                  onClick={() => handleDelete(chapter.id)}
+                  className="px-3 py-1 text-xs bg-red-900 text-red-200 rounded hover:bg-red-800 transition"
+                >
+                  Sil
+                </button>
+              </div>
             </div>
-            
-            <button 
-              onClick={() => handleDelete(chapter.id)}
-              className="bg-red-600/20 text-red-400 hover:bg-red-600 hover:text-white px-3 py-1 rounded text-xs transition border border-red-900"
-            >
-              Sil
-            </button>
+
+            {/* AÇILIR MENÜ: RESİM LİSTESİ */}
+            {expandedChapter === chapter.id && (
+              <div className="bg-black p-4 text-xs font-mono text-gray-400 border-t border-gray-700">
+                <p className="mb-2 text-green-500 font-bold">Yüklü Dosyalar:</p>
+                <ul className="list-decimal list-inside space-y-1 max-h-40 overflow-y-auto">
+                  {chapter.images?.map((url, index) => {
+                    // URL'den dosya adını temizleyip gösterelim
+                    const fileName = url.split('/').pop(); 
+                    return (
+                      <li key={index} className="truncate hover:text-white cursor-help" title={url}>
+                        {fileName}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
           </div>
         ))}
       </div>
