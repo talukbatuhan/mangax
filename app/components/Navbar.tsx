@@ -1,4 +1,5 @@
 import Link from "next/link";
+import SearchBar from "./SearchBar"; // Yeni bileşenimizi çağırdık
 
 export default function Navbar() {
   return (
@@ -7,10 +8,11 @@ export default function Navbar() {
         MangaTR
       </Link>
       
-      <div className="flex gap-4">
-        <Link href="/search" className="text-gray-300 hover:text-white transition">Ara</Link>
-        <Link href="/login" className="px-4 py-2 bg-green-600 rounded hover:bg-green-500 text-sm font-bold transition">
-          Giriş Yap
+      <div className="flex items-center gap-4">
+        <SearchBar />
+
+        <Link href="/admin" className="px-4 py-2 bg-green-600 rounded hover:bg-green-500 text-sm font-bold transition text-white">
+          Panel
         </Link>
       </div>
     </nav>
