@@ -5,7 +5,7 @@ export default async function AdminPage() {
   
   // --- GÜNCELLEME BURADA ---
   // Manga listesini "Try-Catch" içine alıyoruz ki hata olursa sayfa çökmesin.
-  let mangas = [];
+let mangas: { id: string | number; title: string }[] = [];
   let fetchError = null;
 
   try {
