@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toggleFavorite } from "@/app/actions";
@@ -36,20 +37,30 @@ export default function FavoriteButton({ mangaId, slug }: { mangaId: string, slu
     checkUser();
   }, [mangaId, supabase]);
 
-  const handleClick = async () => {
-    // Eğer kullanıcı yoksa login'e at
+const handleClick = async () => {
     if (!userId) {
-      router.push(`/login?returnUrl=/manga/${slug}`); 
+      // Alert yerine Toast:
+      toast.error("Önce giriş yapmalısın!", {
+        action: {
+          label: "Giriş Yap",
+          onClick: () => router.push(`/login?returnUrl=/manga/${slug}`)
+        }
+      });
       return;
     }
 
-    // Varsa işlemi yap
     const newState = !isFav;
-    setIsFav(newState); // Hızlı tepki (Optimistic UI)
+    setIsFav(newState); 
+    
+    // Başarılı bildirimi
+    if (newState) {
+        toast.success("Favorilere eklendi! ❤️");
+    } else {
+        toast.info("Favorilerden çıkarıldı.");
+    }
     
     await toggleFavorite(mangaId, userId);
-  };
-
+};
   if (loading) return <div className="w-10 h-10 bg-gray-800 rounded-full animate-pulse" />;
 
   return (

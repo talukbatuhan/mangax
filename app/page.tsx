@@ -20,11 +20,12 @@ export default async function Home() {
     .limit(12);
 
   // 2. Popüler Liste (Sidebar İçin)
-  const { data: popularMangas } = await supabase
+const { data: popularMangas } = await supabase
     .from("mangas")
     .select("*")
+    .order("views", { ascending: false }) // En çok okunan en üstte
     .limit(5);
-
+    
   const featuredManga = mangas?.[0]; // Vitrindeki manga (En son eklenen)
 
   return (

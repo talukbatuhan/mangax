@@ -11,6 +11,7 @@ interface PageProps {
 
 export default async function ChapterPage({ params }: PageProps) {
   const { slug, chapterNum } = await params;
+  
   const currentChapterNum = Number(chapterNum);
 
   // 1. Mangayı Bul

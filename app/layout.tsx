@@ -1,8 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next"; // Viewport'u buraya ekledik
 // 1. Google Font'u çağırıyoruz
 import { Poppins } from "next/font/google"; 
 import "./globals.css";
 import Footer from "./components/Footer";
+import { Toaster } from "sonner";
+import BottomNav from "./components/BottomNav";
 
 // 2. Font ayarlarını yapıyoruz
 const poppins = Poppins({
@@ -11,9 +13,28 @@ const poppins = Poppins({
   variable: "--font-poppins",
 });
 
+// 1. Viewport Ayarları (Mobil uyumluluk ve renkler)
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1, // Kullanıcının zoom yapmasını engeller (Uygulama hissi için)
+  userScalable: false, 
+};
+
+// 2. Metadata (SEO ve PWA)
 export const metadata: Metadata = {
-  title: "Taluchi - Türkçe Manga Oku",
-  description: "En sevdiğin mangaları buradan oku.",
+  title: "TalucScans",
+  description: "Türkçe Manga Okuma Platformu",
+  manifest: "/manifest.webmanifest", // Manifest dosyasını gösteriyoruz
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "TalucScans",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export default function RootLayout({
@@ -27,6 +48,8 @@ export default function RootLayout({
       <body className={`${poppins.variable} font-sans bg-[#0a0a0a] text-gray-200 antialiased`}>
         {children}
         <Footer />
+        <BottomNav />
+        <Toaster position="top-center" richColors />
       </body>
     </html>
   );

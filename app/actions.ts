@@ -72,3 +72,56 @@ export async function updateReadingProgress(mangaId: string, chapterId: string) 
       last_read_at: new Date().toISOString()
     }, { onConflict: 'user_id, manga_id' });
 }
+
+// yorum yap
+export async function postComment(mangaId: string, content: string, chapterId?: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Giriş yapmalısın");
+
+  const { error } = await supabase
+    .from("comments")
+    .insert({
+      user_id: user.id,
+      manga_id: mangaId,
+      chapter_id: chapterId || null, // Bölüm ID'si yoksa genel manga yorumudur
+      content: content
+    });
+
+  if (error) throw new Error("Yorum gönderilemedi");
+  
+  // Sayfayı yenilemeyeceğiz, Client tarafında listeye ekleyeceğiz (Daha hızlı hissettirir)
+  // Ama yine de cache temizleyelim
+  revalidatePath(`/manga/[slug]`); 
+}
+
+// GÖRÜNTÜLENME ARTTIR
+export async function incrementView(mangaId: string) {
+  const supabase = await createClient();
+  
+  // RPC (Remote Procedure Call) ile SQL fonksiyonunu çağırıyoruz
+  const { error } = await supabase.rpc('increment_views', { manga_id: mangaId });
+
+  if (error) console.error("Sayaç hatası:", error);
+}
+
+export async function rateManga(mangaId: string, score: number) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Giriş yapmalısın");
+
+  // Upsert: Varsa güncelle, yoksa yeni puan ver
+  const { error } = await supabase
+    .from("ratings")
+    .upsert({
+      user_id: user.id,
+      manga_id: mangaId,
+      score: score
+    }, { onConflict: 'user_id, manga_id' });
+
+  if (error) throw new Error("Puan verilemedi");
+  
+  revalidatePath(`/manga/[slug]`);
+}

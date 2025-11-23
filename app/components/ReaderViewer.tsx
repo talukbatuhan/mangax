@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { updateReadingProgress } from "@/app/actions"; // <--- İŞTE EKSİK OLAN SATIR BU! ✅
+import { updateReadingProgress, incrementView } from "@/app/actions"; // <--- İŞTE EKSİK OLAN SATIR BU! ✅
+
 
 interface ReaderViewerProps {
   images: string[];
@@ -38,6 +39,7 @@ export default function ReaderViewer({
     // Sayfa açıldığı an "Bunu okuyor" diye veritabanına işliyoruz.
     if (mangaId && chapterId) {
         updateReadingProgress(mangaId, chapterId);
+        incrementView(mangaId);
     }
 
     // --- 2. SCROLL MANTIĞI ---
