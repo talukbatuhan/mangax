@@ -1,53 +1,86 @@
-import MangaCard from "@/app/components/MangaCard";
 import Navbar from "@/app/components/Navbar";
+import MangaCard from "@/app/components/MangaCard";
+import SearchFilters from "@/app/components/SearchFilters"; // <--- Yeni bileşen
 import { supabase } from "@/lib/supabase";
-import { Manga } from "@/app/types"
-import Link from "next/link";
+import { Manga } from "@/app/types";
+import { Search } from "lucide-react";
 
 interface SearchPageProps {
-  searchParams: Promise<{ q: string }>;
+  searchParams: Promise<{ 
+    q?: string; 
+    genre?: string; 
+    sort?: string; 
+  }>;
 }
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
-  // 1. URL'den aranan kelimeyi al (await ile!)
-  const { q } = await searchParams;
+  const { q, genre, sort } = await searchParams;
   const query = q || "";
+  const selectedGenre = genre || "";
+  const sortBy = sort || "created_at"; // Varsayılan: En yeni
 
-  // 2. Veritabanında Arama Yap (SQL'deki LIKE komutu)
-  // ilike: Büyük/Küçük harf duyarlılığı olmadan ara demektir.
-  // '%query%' : İçinde bu kelime geçen her şeyi getir.
-  const { data: mangas } = await supabase
+  // --- SORGULAMA MANTIĞI ---
+  let dbQuery = supabase
     .from("mangas")
-    .select("*")
-    .ilike("title", `%${query}%`) 
-    .order("created_at", { ascending: false });
+    .select("*");
+
+  // 1. İsim Araması
+  if (query) {
+    dbQuery = dbQuery.ilike("title", `%${query}%`);
+  }
+
+  // 2. Tür Filtresi (Dizi içinde arama)
+  if (selectedGenre) {
+    dbQuery = dbQuery.contains("genres", [selectedGenre]);
+  }
+
+  // 3. Sıralama (created_at, views, rating_avg)
+  dbQuery = dbQuery.order(sortBy, { ascending: false });
+
+  const { data: mangas } = await dbQuery;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans">
       <Navbar />
       
-      <div className="container mx-auto px-4 py-10">
-        <div className="mb-8">
-            <Link href="/" className="text-gray-400 hover:text-white text-sm mb-4 block">&larr; Anasayfaya Dön</Link>
-            <h1 className="text-2xl font-bold">
-                <span className="text-green-400">{query}</span>
+      <div className="container mx-auto px-6 py-24">
+        
+        {/* Üst Başlık */}
+        <div className="mb-10 border-b border-white/10 pb-6">
+            <h1 className="text-3xl font-bold flex items-center gap-3">
+                <Search className="text-green-500" />
+                {query ? `"${query}" için sonuçlar` : "Manga Keşfet"}
             </h1>
+            <p className="text-gray-400 mt-2">
+                Toplam {mangas?.length || 0} seri bulundu.
+            </p>
         </div>
 
-        {/* Sonuç Varsa Listele */}
-        {mangas && mangas.length > 0 ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            {mangas.map((manga) => (
-              <MangaCard key={manga.id} manga={manga as Manga} />
-            ))}
-          </div>
-        ) : (
-          // Sonuç Yoksa
-          <div className="text-center py-20 bg-gray-900 rounded-xl border border-gray-800">
-            <p className="text-xl text-gray-400">Üzgünüz, aradığınız manga bulunamadı.</p>
-            <p className="text-sm text-gray-600 mt-2">İsimde hata yapmış olabilir misin?</p>
-          </div>
-        )}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-10">
+            
+            {/* SOL: FİLTRE MENÜSÜ */}
+            <div className="lg:col-span-1">
+                <SearchFilters />
+            </div>
+
+            {/* SAĞ: SONUÇLAR */}
+            <div className="lg:col-span-3">
+                {mangas && mangas.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {mangas.map((manga) => (
+                            <MangaCard key={manga.id} manga={manga as Manga} />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center py-20 bg-gray-900/30 border border-dashed border-gray-800 rounded-2xl">
+                        <span className="text-4xl mb-4">🤔</span>
+                        <h3 className="text-xl font-bold text-white">Sonuç Bulunamadı</h3>
+                        <p className="text-gray-500 mt-2">Farklı filtreler denemeyi ya da arama terimini değiştirmeyi dene.</p>
+                    </div>
+                )}
+            </div>
+
+        </div>
       </div>
     </div>
   );

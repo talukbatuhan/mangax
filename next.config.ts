@@ -7,11 +7,10 @@ const withPWA = withPWAInit({
   cacheOnFrontEndNav: true,
   aggressiveFrontEndNavCaching: true,
   reloadOnOnline: true,
-  disable: process.env.NODE_ENV === "development", // Geliştirme modunda kapalı
+  disable: process.env.NODE_ENV === "development",
   workboxOptions: {
     disableDevLogs: true,
   },
-  // 'swcMinify' BURADAN SİLİNDİ (Çünkü buraya ait değil)
 });
 
 // 2. Next.js Ayarları
@@ -28,7 +27,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // 'turbopack' ayarını da sildik çünkü package.json üzerinden hallettik
+  
+  // --- DÜZELTME BURADA: Limiti 50MB yapıyoruz ---
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '50mb', 
+    },
+  },
 };
 
 export default withPWA(nextConfig);

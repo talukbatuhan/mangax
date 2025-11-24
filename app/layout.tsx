@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next"; // Viewport'u buraya ekledik
 // 1. Google Font'u çağırıyoruz
 import { Poppins } from "next/font/google"; 
 import "./globals.css";
-import Footer from "./components/Footer";
+import FooterWrapper from "@/app/components/FooterWrapper";
 import { Toaster } from "sonner";
 import BottomNav from "./components/BottomNav";
 
@@ -47,7 +47,7 @@ export default function RootLayout({
       {/* 3. Fontu body'e uyguluyoruz */}
       <body className={`${poppins.variable} font-sans bg-[#0a0a0a] text-gray-200 antialiased`}>
         {children}
-        <Footer />
+        <FooterWrapper />
         <BottomNav />
         <Toaster position="top-center" richColors />
       </body>

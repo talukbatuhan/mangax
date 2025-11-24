@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: 'TalucScans',
     description: 'En sevdiğin mangaları ücretsiz ve Türkçe oku.',
     start_url: '/',
-    display: 'standalone', // Tarayıcı çubuğunu gizler (Tam Ekran)
+    display: 'standalone', 
     background_color: '#0a0a0a',
     theme_color: '#0a0a0a',
     icons: [
