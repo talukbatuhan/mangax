@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { Layers, ExternalLink, Calendar } from "lucide-react";
-import DeleteChapterButton from "@/app/components/admin/DeleteChapterButton"; 
+import DeleteChapterButton from "@/app/components/admin/DeleteChapterButton";
 
 export const revalidate = 0;
 

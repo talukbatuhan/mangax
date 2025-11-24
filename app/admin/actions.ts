@@ -214,3 +214,17 @@ export async function deleteGenre(id: number) {
   revalidatePath("/admin/genres");
 }
 
+export async function getChaptersAction(mangaId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("chapters")
+    .select("*")
+    .eq("manga_id", mangaId)
+    .order("chapter_number", { ascending: true }); 
+
+  if (error) {
+    console.error("Bölüm çekme hatası:", error);
+    return [];
+  }
+  return data;
+}
