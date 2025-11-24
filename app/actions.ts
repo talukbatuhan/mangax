@@ -125,3 +125,26 @@ export async function rateManga(mangaId: string, score: number) {
   
   revalidatePath(`/manga/[slug]`);
 }
+
+export async function toggleSlider(mangaId: string) {
+  const supabase = await createClient();
+  
+  // Önce var mı diye bak
+  const { data } = await supabase
+    .from("slider_items")
+    .select("*")
+    .eq("manga_id", mangaId)
+    .single();
+
+  if (data) {
+    // Varsa Sil (Vitrinden Kaldır)
+    await supabase.from("slider_items").delete().eq("manga_id", mangaId);
+    revalidatePath("/admin/appearance");
+    return { status: "removed" };
+  } else {
+    // Yoksa Ekle (Vitrine Koy)
+    await supabase.from("slider_items").insert({ manga_id: mangaId });
+    revalidatePath("/admin/appearance");
+    return { status: "added" };
+  }
+}

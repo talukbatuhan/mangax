@@ -1,67 +1,11 @@
 "use server";
 
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 
-export async function deleteManga(id: string | number) {
-  // 1. Önce veritabanından silelim
-  // Supabase'de "Cascade Delete" ayarı genelde varsayılan değildir ama
-  // biz kodu yazarken Chapters tablosunda "on delete cascade" dediysek
-  // Mangayı silince bölümler de otomatik silinir.
-
-  const { error } = await supabase.from("mangas").delete().eq("id", id);
-
-  if (error) {
-    throw new Error("Silme işlemi başarısız: " + error.message);
-  }
-
-  // Not: Resim dosyaları Storage'da (Depoda) kalmaya devam eder.
-  // Storage'dan klasör silmek biraz daha karmaşık bir işlemdir,
-  // şimdilik sadece veritabanı temizliği yapıyoruz.
-
-  // 2. Sayfayı yenile ki liste güncellensin
-  revalidatePath("/admin");
-  revalidatePath("/");
-}
-
-export async function getChapters(mangaId: string) {
-  const { data, error } = await supabase
-    .from("chapters")
-    .select("*")
-    .eq("manga_id", mangaId)
-    .order("chapter_number", { ascending: true }); // Bölüm 1, 2, 3 diye sırala
-
-  if (error) return [];
-  return data;
-}
-
-// 2. Tek Bir Bölümü Sil
-export async function deleteChapter(chapterId: string) {
-  const { error } = await supabase
-    .from("chapters")
-    .delete()
-    .eq("id", chapterId);
-
-  if (error) throw new Error("Bölüm silinemedi");
-
-  revalidatePath("/admin");
-  revalidatePath("/");
-}
-
-export async function updateMangaGenres(mangaId: string, newGenres: string[]) {
-  const { error } = await supabase
-    .from("mangas")
-    .update({ genres: newGenres })
-    .eq("id", mangaId);
-
-  if (error) throw new Error("Türler güncellenemedi");
-
-  revalidatePath("/admin");
-  revalidatePath("/");
-}
-
+// --- 1. YENİ MANGA OLUŞTURMA ---
 export async function createMangaAction(formData: FormData) {
   const supabase = await createClient();
 
@@ -73,9 +17,8 @@ export async function createMangaAction(formData: FormData) {
   const genresRaw = formData.get("genres") as string;
   const genres = genresRaw ? genresRaw.split(",").map((g) => g.trim()) : [];
 
-  if (!coverFile || !slug) throw new Error("Eksik bilgi");
+  if (!coverFile || !slug) return { success: false, error: "Eksik bilgi" };
 
-  // 1. Kapak Yükle
   const cleanFileName = coverFile.name.replace(/[^a-zA-Z0-9.]/g, "_");
   const fileName = `cover-${Date.now()}-${cleanFileName}`;
 
@@ -83,13 +26,12 @@ export async function createMangaAction(formData: FormData) {
     .from("covers")
     .upload(fileName, coverFile);
 
-  if (uploadError) throw new Error("Kapak yüklenemedi: " + uploadError.message);
+  if (uploadError) return { success: false, error: uploadError.message };
 
   const {
     data: { publicUrl },
   } = supabase.storage.from("covers").getPublicUrl(fileName);
 
-  // 2. DB'ye Yaz
   const { error: dbError } = await supabase.from("mangas").insert({
     title,
     slug,
@@ -99,18 +41,14 @@ export async function createMangaAction(formData: FormData) {
     genres,
   });
 
-  if (dbError) throw new Error("Veritabanı hatası: " + dbError.message);
+  if (dbError) return { success: false, error: dbError.message };
 
-  // --- ÖNEMLİ DEĞİŞİKLİK BURADA ---
-  // İşlemler bittikten sonra sayfaları yenile
   revalidatePath("/admin/mangas");
   revalidatePath("/");
-
-  // Redirect işlemini burada yapmak yerine return ile bitiriyoruz.
-  // Yönlendirmeyi Client tarafında (page.tsx içinde) yapacağız.
   return { success: true };
 }
 
+// --- 2. BÖLÜM YÜKLEME ---
 export async function uploadChapterAction(formData: FormData) {
   const supabase = await createClient();
 
@@ -122,7 +60,6 @@ export async function uploadChapterAction(formData: FormData) {
   if (!files || files.length === 0)
     return { success: false, error: "Dosya seçilmedi" };
 
-  // 1. Sıralama
   files.sort((a, b) =>
     a.name.localeCompare(b.name, undefined, {
       numeric: true,
@@ -130,7 +67,6 @@ export async function uploadChapterAction(formData: FormData) {
     })
   );
 
-  // 2. Yükleme
   const uploadPromises = files.map(async (file, index) => {
     const cleanName = file.name.replace(/[^a-zA-Z0-9.]/g, "_");
     const path = `${mangaId}/${chapterNum}/${Date.now()}-${index}-${cleanName}`;
@@ -149,7 +85,6 @@ export async function uploadChapterAction(formData: FormData) {
   try {
     const newImageUrls = await Promise.all(uploadPromises);
 
-    // 3. Veritabanı (Ekle veya Güncelle)
     const { data: existingChapter } = await supabase
       .from("chapters")
       .select("id, images")
@@ -158,7 +93,6 @@ export async function uploadChapterAction(formData: FormData) {
       .single();
 
     if (existingChapter) {
-      // Append (Üzerine Ekle)
       const combinedImages = [
         ...(existingChapter.images || []),
         ...newImageUrls,
@@ -168,7 +102,6 @@ export async function uploadChapterAction(formData: FormData) {
         .update({ images: combinedImages, title: title || undefined })
         .eq("id", existingChapter.id);
     } else {
-      // Yeni Kayıt
       await supabase.from("chapters").insert({
         manga_id: mangaId,
         chapter_number: Number(chapterNum),
@@ -177,36 +110,107 @@ export async function uploadChapterAction(formData: FormData) {
       });
     }
 
-    const { data: fans } = await supabase
-      .from("favorites")
-      .select("user_id")
-      .eq("manga_id", mangaId);
-
-    if (fans && fans.length > 0) {
-      // 2. Her fan için bir bildirim objesi oluştur
-      const notifications = fans.map((fan) => ({
-        user_id: fan.user_id,
-        title: "Yeni Bölüm Geldi! 🔥",
-        message: `${title || "Yeni Bölüm"} yayınlandı. Hemen oku!`,
-        link: `/manga/${mangaId}/${chapterNum}`, // Okuma sayfasına git
-      }));
-
-      // 3. Toplu halde bildirimleri kaydet
-      await supabase.from("notifications").insert(notifications);
-    }
     revalidatePath(`/admin/mangas/${mangaId}`);
     return { success: true };
   } catch (error) {
-    // Hatayı güvenli bir şekilde string mesaja çeviriyoruz
+    // DÜZELTME: Güvenli hata kontrolü
     const errorMessage =
-      error instanceof Error ? error.message : "Bilinmeyen bir hata oluştu";
+      error instanceof Error ? error.message : "Bir hata oluştu";
     return { success: false, error: errorMessage };
   }
 }
 
-// BÖLÜM SİLME
+// --- 3. BÖLÜM SİLME ---
 export async function deleteChapterAction(chapterId: string) {
   const supabase = await createClient();
   await supabase.from("chapters").delete().eq("id", chapterId);
-  revalidatePath("/admin/mangas/[id]"); // Dinamik path'i tetikle
+  revalidatePath("/admin/mangas/[id]");
 }
+
+// --- 4. MANGAYI SİLME ---
+export async function deleteManga(id: string | number) {
+  const supabase = await createClient();
+  await supabase.from("mangas").delete().eq("id", id);
+  revalidatePath("/admin");
+  revalidatePath("/");
+}
+
+// --- 5. TÜR GÜNCELLEME ---
+export async function updateMangaGenres(mangaId: string, newGenres: string[]) {
+  const supabase = await createClient();
+  await supabase.from("mangas").update({ genres: newGenres }).eq("id", mangaId);
+  revalidatePath("/admin");
+  revalidatePath("/");
+}
+
+// --- 6. SLIDER (VİTRİN) YÖNETİMİ [EKSİK OLAN BUYDU] ---
+export async function toggleSlider(mangaId: string) {
+  const supabase = await createClient();
+
+  // Önce var mı diye bak
+  const { data } = await supabase
+    .from("slider_items")
+    .select("*")
+    .eq("manga_id", mangaId)
+    .single();
+
+  if (data) {
+    // Varsa Sil
+    await supabase.from("slider_items").delete().eq("manga_id", mangaId);
+    revalidatePath("/admin/appearance");
+    return { status: "removed" };
+  } else {
+    // Yoksa Ekle
+    await supabase.from("slider_items").insert({ manga_id: mangaId });
+    revalidatePath("/admin/appearance");
+    return { status: "added" };
+  }
+}
+
+export async function deleteCommentAction(commentId: number) {
+  const supabase = await createClient();
+  
+  const { error } = await supabase
+    .from("comments")
+    .delete()
+    .eq("id", commentId);
+
+  if (error) throw new Error("Yorum silinemedi: " + error.message);
+
+  revalidatePath("/admin/comments"); // Listeyi yenile
+  // Ayrıca manga detay sayfasındaki yorumları da yenilememiz iyi olur ama dinamik olduğu için zor.
+  // Admin panelini yenilemek yeterli.
+}
+
+export async function deleteUserAction(userId: string) {
+  // Not: 'createClient' yerine 'supabaseAdmin' kullanıyoruz.
+  
+  // 1. auth.users tablosundan sil
+  // (Bu işlem 'Cascade' sayesinde profiles, comments, favorites her şeyi otomatik siler)
+  const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+
+  if (error) {
+    console.error("Silme hatası:", error);
+    throw new Error("Kullanıcı silinemedi: " + error.message);
+  }
+
+  revalidatePath("/admin/users");
+}
+
+export async function addGenre(formData: FormData) {
+  const supabase = await createClient();
+  const name = formData.get("name") as string;
+  
+  if (!name) return;
+
+  await supabase.from("genres").insert({ name });
+  revalidatePath("/admin/genres");
+}
+
+// TÜR SİL
+export async function deleteGenre(id: number) {
+  const supabase = await createClient();
+  await supabase.from("genres").delete().eq("id", id);
+  revalidatePath("/admin/genres");
+}
+

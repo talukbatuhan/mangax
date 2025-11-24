@@ -26,7 +26,21 @@ const { data: popularMangas } = await supabase
     .order("views", { ascending: false }) // En çok okunan en üstte
     .limit(5);
     
-  const featuredManga = mangas?.[0]; // Vitrindeki manga (En son eklenen)
+  const { data: sliderData } = await supabase
+    .from("slider_items")
+    .select(`
+      mangas (title, slug, description, cover_url)
+    `);
+
+  // Eğer vitrinde manga varsa onlardan RASTGELE birini seç
+  // Yoksa son eklenenlerden ilkini al (Fallback)
+  let featuredManga = null;
+  
+if (sliderData && sliderData.length > 0) {
+    featuredManga = sliderData[0].mangas;
+  } else {
+    featuredManga = mangas?.[0];
+  }// Vitrindeki manga (En son eklenen)
 
   return (
     <main className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-green-500 selection:text-black">
