@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import Image from "next/image";
+import { PlayCircle } from "lucide-react";
 
-// 1. Veri Tipini Tanımlıyoruz (ESLint Mutlu Olsun Diye)
 interface HistoryItem {
   manga_id: string;
   last_read_at: string;
@@ -18,66 +18,84 @@ interface HistoryItem {
 
 export default async function ContinueReading() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) return null;
 
   const { data } = await supabase
     .from("reading_history")
-    .select(`
+    .select(
+      `
       manga_id,
       last_read_at,
       mangas (title, slug, cover_url),
       chapters (chapter_number)
-    `)
+    `
+    )
     .eq("user_id", user.id)
     .order("last_read_at", { ascending: false })
     .limit(4);
 
   if (!data || data.length === 0) return null;
 
-  // 2. Gelen veriyi "HistoryItem" kalıbına sokuyoruz (Type Casting)
   const history = data as unknown as HistoryItem[];
 
   return (
-    <div className="mb-12">
-      <h2 className="text-xl font-bold mb-6 flex items-center gap-2 text-white">
-        <span className="text-xl">📖</span> Okumaya Devam Et
+    <div>
+      <h2 className="text-lg font-bold text-white mb-4 flex items-center gap-2 border-l-4 border-green-600 pl-3 uppercase tracking-wide">
+        OKUMAYA DEVAM ET
       </h2>
-      
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         {history.map((item) => {
-          // Artık 'item' değişkeninin tipi belli, 'any' hatası vermez.
           const manga = item.mangas;
           const chapter = item.chapters;
-          
-          // Eğer manga silinmişse ama geçmişte kalmışsa hata vermesin diye kontrol:
+
           if (!manga || !chapter) return null;
 
           return (
-            <Link 
-              key={item.manga_id} 
+            <Link
+              key={item.manga_id}
               href={`/manga/${manga.slug}/${chapter.chapter_number}`}
-              
-              className="flex items-center gap-4 bg-gray-900/80 p-3 rounded-xl border border-white/5 hover:border-green-500 hover:bg-gray-800 transition group"
+              className="flex group bg-[#151515] border border-white/5 hover:border-green-600/50 transition h-20 overflow-hidden relative"
             >
-              {/* Küçük Resim */}
-              <div className="relative w-12 h-16 shrink-0 rounded overflow-hidden shadow-md bg-gray-800">
-                 {manga.cover_url && <Image src={manga.cover_url} fill className="w-full h-full object-cover group-hover:scale-110 transition" alt={manga.title} />}
+              {/* SOL: Resim (Köşesiz, tam boy) */}
+              <div className="relative w-16 h-full shrink-0 bg-black">
+                {manga.cover_url && (
+                  <Image
+                    src={manga.cover_url}
+                    fill
+                    className="object-cover group-hover:scale-110 transition duration-500 opacity-80 group-hover:opacity-100"
+                    alt={manga.title}
+                    sizes="64px"
+                  />
+                )}
+                {/* Play İkonu Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-transparent transition">
+                  <PlayCircle
+                    size={20}
+                    className="text-white opacity-70 group-hover:text-green-400 group-hover:scale-125 transition"
+                  />
+                </div>
               </div>
-              
-              {/* Bilgi */}
-              <div className="overflow-hidden">
-                <h4 className="font-bold text-gray-200 text-sm truncate group-hover:text-green-400 transition">
-                    {manga.title}
+
+              {/* SAĞ: Bilgi */}
+              <div className="flex-1 p-3 flex flex-col justify-center min-w-0">
+                <h4 className="font-bold text-gray-200 text-xs truncate group-hover:text-green-400 transition uppercase tracking-wide">
+                  {manga.title}
                 </h4>
-                <p className="text-xs text-green-500 font-mono mt-1">
-                    Bölüm {chapter.chapter_number}
-                </p>
-                <p className="text-[10px] text-gray-500 mt-1">
-                    Devam Et →
-                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] font-bold bg-green-900/30 text-green-400 px-1.5 py-0.5 border border-green-900/50">
+                    BÖLÜM {chapter.chapter_number}
+                  </span>
+                  <span className="text-[9px] text-gray-500">Kaldığın Yer</span>
+                </div>
               </div>
+
+              {/* Hover Çizgisi */}
+              <div className="absolute bottom-0 left-0 w-full h-[2px] bg-green-600 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
             </Link>
           );
         })}

@@ -1,29 +1,33 @@
-"use client"; // Tıklama olayları için Client Component yapıyoruz
+"use client";
 
 import Link from "next/link";
-import SearchBar from "./SearchBar"; // Bu componentin import yolu doğru mu kontrol et
+import SearchBar from "./SearchBar";
+import LuckyButton from "./LuckyButton"; // Rastgele Manga Butonu
 import { createClient } from "@/lib/supabase/client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
-import NotificationBell from "@/app/components/NotificationBell";
-import { ShieldCheck } from "lucide-react"; // Admin ikonu için şık bir ikon ekledim
+import { Menu, X, User as UserIcon, LogOut, Heart, ShieldCheck } from "lucide-react";
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
-  // ENV dosyasından admin mailini alıyoruz
-  const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+  // Scroll Takibi (Aşağı kayınca navbar koyulaşsın)
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
+  // Kullanıcı ve Profil Verisi Çekme
   useEffect(() => {
     const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
 
       if (user) {
@@ -38,6 +42,7 @@ export default function Navbar() {
     getUser();
   }, [supabase]);
 
+  // Çıkış Yapma İşlemi
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -47,88 +52,86 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="w-full fixed top-0 left-0 z-50 border-b border-white/10 bg-black/90 backdrop-blur-md transition-all">
-      <div className="px-6 h-16 flex items-center justify-between">
+    <nav 
+      className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 border-b ${
+        isScrolled 
+          ? "bg-[#0a0a0a]/95 border-white/10 shadow-lg backdrop-blur-xl" 
+          : "bg-transparent border-transparent"
+      }`}
+    >
+      <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+        
         {/* --- SOL: LOGO --- */}
-        <Link href="/" className="flex items-center gap-2 group z-50">
-          <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center text-white font-bold text-xl group-hover:rotate-12 transition">
+        <Link href="/" className="flex items-center gap-2 group z-50 shrink-0">
+          <div className="w-8 h-8 bg-gradient-to-br from-green-600 to-green-400 rounded flex items-center justify-center text-black font-black text-xl shadow-[0_0_15px_rgba(34,197,94,0.4)] group-hover:rotate-6 transition-transform">
             T
           </div>
-          <span className="text-xl font-bold tracking-tight text-white group-hover:text-green-400 transition">
+          <span className="text-lg font-bold tracking-tight text-white hidden sm:block">
             Taluc<span className="text-green-500">Scans</span>
           </span>
         </Link>
 
-        {/* --- ORTA: MOBİL HAMBURGER BUTONU --- */}
-        <div className="md:hidden flex items-center gap-4">
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="text-white focus:outline-none"
-          >
-            {isMenuOpen ? (
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8 text-green-500">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-8 h-8">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-              </svg>
-            )}
-          </button>
+        {/* --- ORTA: ARAMA + LUCKY BUTTON (Masaüstü) --- */}
+        <div className="hidden md:flex flex-1 items-center justify-end gap-4 mr-6">
+           
+           {/* Lucky Button (Solda dursun, arama büyürken bunu itmesin) */}
+           <div className="shrink-0">
+              <LuckyButton />
+           </div>
+
+           {/* Arama Çubuğu */}
+           <div className="relative">
+              <SearchBar />
+           </div>
+
         </div>
 
-        {/* --- SAĞ: DESKTOP MENÜ --- */}
-        <div className="hidden md:flex items-center gap-4">
-          <SearchBar />
+        {/* --- MOBİL MENÜ BUTONU --- */}
+        <button 
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          className="md:hidden text-gray-300 hover:text-white p-2 transition z-50"
+        >
+          {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
 
+        {/* --- SAĞ: KULLANICI MENÜSÜ (Masaüstü) --- */}
+        <div className="hidden md:flex items-center gap-6 border-l border-white/10 pl-6">
+          
           {user ? (
-            <div className="flex items-center gap-4">
-              
-              {/* --- ADMIN BUTONU (Sadece Admin Maili Eşleşirse) --- */}
-              {user.email === adminEmail && (
-                <Link
-                  href="/admin"
-                  className="flex items-center gap-1 text-red-400 text-xs font-bold border border-red-400/30 px-3 py-1.5 rounded hover:bg-red-400/10 transition animate-pulse"
-                >
-                  <ShieldCheck size={14} />
-                  ADMIN PANEL
-                </Link>
-              )}
+            <>
+               {/* Sadece Admin Görür */}
+               {user.email === 'senin-mail-adresin@gmail.com' && (
+                  <Link href="/admin" className="text-gray-400 hover:text-red-400 transition" title="Admin Paneli">
+                    <ShieldCheck size={20} />
+                  </Link>
+               )}
 
-              <NotificationBell userId={user.id} />
-              <Link
-                href="/favorites"
-                className="text-gray-300 hover:text-white text-sm font-medium transition"
-              >
-                Kütüphanem
-              </Link>
-
-              <Link
-                href="/profile"
-                className="relative w-9 h-9 rounded-md overflow-hidden border border-white/20 hover:border-green-500 transition group bg-gray-800"
-              >
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-green-700 flex items-center justify-center font-bold text-white text-sm">
-                    {user.email?.charAt(0).toUpperCase()}
-                  </div>
-                )}
-              </Link>
-
-              <button
-                onClick={handleSignOut}
-                className="text-gray-400 hover:text-white text-xs font-medium ml-1 transition"
-              >
-                Çıkış
-              </button>
-            </div>
+               <Link href="/favorites" className="text-gray-400 hover:text-white transition" title="Favorilerim">
+                  <Heart size={20} className="hover:fill-red-500 hover:text-red-500 transition-colors" />
+               </Link>
+               
+               <div className="flex items-center gap-3">
+                 <Link href="/profile" className="relative w-9 h-9 rounded-full overflow-hidden border border-white/20 hover:border-green-500 transition group shadow-md">
+                    {avatarUrl ? (
+                       <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                       <div className="w-full h-full bg-gray-800 flex items-center justify-center text-gray-400 group-hover:text-white text-xs font-bold">
+                          {user.email?.charAt(0).toUpperCase()}
+                       </div>
+                    )}
+                 </Link>
+                 
+                 <button onClick={handleSignOut} className="text-gray-500 hover:text-red-400 transition" title="Çıkış Yap">
+                   <LogOut size={18} />
+                 </button>
+               </div>
+            </>
           ) : (
-            <div className="flex items-center gap-3">
-              <Link href="/login" className="px-5 py-2 bg-green-600 hover:bg-green-500 rounded-full text-sm font-bold transition text-white shadow-lg">
-                Giriş Yap
+            <div className="flex items-center gap-4">
+              <Link href="/login" className="text-sm font-bold text-gray-300 hover:text-white transition">
+                Giriş
               </Link>
-              <Link href="/register" className="text-gray-400 hover:text-white text-sm font-medium transition">
+              <Link href="/register" className="px-5 py-2 bg-white text-black hover:bg-green-500 hover:text-white rounded-full text-sm font-bold transition shadow-lg hover:shadow-green-500/20">
                 Kayıt Ol
               </Link>
             </div>
@@ -136,51 +139,57 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* --- MOBİL MENÜ --- */}
-      <div className={`md:hidden bg-black border-b border-white/10 overflow-hidden transition-all duration-300 ${isMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"}`}>
-        <div className="px-6 py-4 space-y-4 flex flex-col items-center">
-          <div className="w-full">
-            <SearchBar />
-          </div>
+      {/* --- MOBİL MENÜ (AÇILIR PENCERE) --- */}
+      <div className={`md:hidden absolute top-16 left-0 w-full bg-[#0f0f0f] border-b border-white/10 overflow-hidden transition-all duration-300 ease-in-out ${isMenuOpen ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}>
+        <div className="p-6 space-y-6">
+            
+            {/* Mobilde Arama ve Lucky Button */}
+            <div className="w-full space-y-4">
+               <SearchBar />
+               <div className="flex justify-center w-full">
+                  <LuckyButton />
+               </div>
+            </div>
 
-          {user ? (
-            <>
-              {/* MOBİL İÇİN ADMIN BUTONU */}
-              {user.email === adminEmail && (
-                <Link
-                  href="/admin"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="flex items-center justify-center gap-2 text-red-400 font-bold w-full text-center py-2 border border-red-900 rounded bg-red-900/10 hover:bg-red-900/20"
-                >
-                   <ShieldCheck size={18} />
-                  ADMIN PANELİNE GİT
+            {user ? (
+              <div className="space-y-4 border-t border-white/5 pt-4">
+                {/* Profil Bilgisi */}
+                <div className="flex items-center gap-3 pb-4 border-b border-white/5">
+                    <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden border border-white/10">
+                        {avatarUrl ? <img src={avatarUrl} className="object-cover w-full h-full" alt="Avatar" /> : <div className="w-full h-full flex items-center justify-center text-white">{user.email?.charAt(0).toUpperCase()}</div>}
+                    </div>
+                    <div>
+                        <p className="text-white font-bold text-sm">{user.email?.split('@')[0]}</p>
+                        <Link href="/profile" onClick={() => setIsMenuOpen(false)} className="text-green-500 text-xs hover:underline">Profil Ayarları</Link>
+                    </div>
+                </div>
+
+                <Link href="/favorites" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 text-gray-300 hover:text-white p-2 rounded hover:bg-white/5 transition">
+                   <Heart size={18} /> Kütüphanem
                 </Link>
-              )}
 
-              <Link href="/profile" onClick={() => setIsMenuOpen(false)} className="text-white font-medium w-full text-center py-2 hover:bg-white/5 rounded">
-                Profilim ({user.email?.split("@")[0]})
-              </Link>
+                {user.email === 'senin-mail-adresin@gmail.com' && (
+                    <Link href="/admin" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 text-red-400 font-bold p-2 rounded hover:bg-red-500/10 transition">
+                      <ShieldCheck size={18} /> Admin Paneli
+                    </Link>
+                )}
 
-              <Link href="/favorites" onClick={() => setIsMenuOpen(false)} className="text-gray-300 w-full text-center py-2 hover:bg-white/5 rounded">
-                Kütüphanem
-              </Link>
-
-              <button onClick={handleSignOut} className="text-gray-400 text-sm w-full text-center py-2">
-                Çıkış Yap
-              </button>
-            </>
-          ) : (
-            <>
-              <Link href="/login" onClick={() => setIsMenuOpen(false)} className="w-full bg-green-600 text-white font-bold py-3 rounded-lg text-center">
-                Giriş Yap
-              </Link>
-              <Link href="/register" onClick={() => setIsMenuOpen(false)} className="w-full text-gray-300 py-2 text-center">
-                Kayıt Ol
-              </Link>
-            </>
-          )}
+                <button onClick={handleSignOut} className="flex items-center gap-3 text-gray-500 hover:text-red-400 p-2 w-full text-left transition">
+                   <LogOut size={18} /> Çıkış Yap
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3 border-t border-white/5 pt-4">
+                <Link href="/login" onClick={() => setIsMenuOpen(false)} className="w-full bg-white/5 text-white font-bold py-3 rounded-full text-center border border-white/10">
+                  Giriş Yap
+                </Link>
+                <Link href="/register" onClick={() => setIsMenuOpen(false)} className="w-full bg-green-600 text-white font-bold py-3 rounded-full text-center shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+                  Aramıza Katıl
+                </Link>
+              </div>
+            )}
         </div>
       </div>
     </nav>
   );
-} 
+}

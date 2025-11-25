@@ -148,3 +148,18 @@ export async function toggleSlider(mangaId: string) {
     return { status: "added" };
   }
 }
+
+export async function getRandomMangaSlug() {
+  const supabase = await createClient();
+  
+  // Basitçe tüm slugları çekip JavaScript'te rastgele seçmek en kolayıdır
+  const { data } = await supabase
+    .from("mangas")
+    .select("slug")
+    .limit(50); // En son eklenen 50 manga arasından seçsin
+
+  if (!data || data.length === 0) return "/";
+
+  const randomIndex = Math.floor(Math.random() * data.length);
+  return `/manga/${data[randomIndex].slug}`;
+}

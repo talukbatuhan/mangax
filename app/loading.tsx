@@ -1,58 +1,23 @@
-import type { Metadata, Viewport } from "next";
-import { Poppins } from "next/font/google"; 
-import "./globals.css";
-import FooterWrapper from "@/app/components/FooterWrapper";
-import { Toaster } from "sonner";
-// DİKKAT: Artık doğrudan BottomNav'ı değil, oluşturduğumuz Wrapper'ı çağırıyoruz
-import BottomNavWrapper from "@/app/components/BottomNavWrapper";
+import Navbar from "@/app/components/Navbar";
+import MangaCardSkeleton from "@/app/components/skeletons/MangaCardSkeleton";
 
-const poppins = Poppins({
-  subsets: ["latin"],
-  weight: ["300", "400", "600", "700"],
-  variable: "--font-poppins",
-});
-
-export const viewport: Viewport = {
-  themeColor: "#0a0a0a",
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false, 
-};
-
-export const metadata: Metadata = {
-  title: "TalucScans",
-  description: "Türkçe Manga Okuma Platformu",
-  manifest: "/manifest.webmanifest",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "TalucScans",
-  },
-  formatDetection: {
-    telephone: false,
-  },
-};
-
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function Loading() {
   return (
-    <html lang="tr">
-      <body className={`${poppins.variable} font-sans bg-[#0a0a0a] text-gray-200 antialiased`}>
-        {children}
+    // Sadece div kullanıyoruz, html veya body yok!
+    <div className="min-h-screen bg-[#0a0a0a]"> 
+      <Navbar />
+      <div className="container mx-auto px-6 py-24">
+        {/* Hero Skeleton */}
+        <div className="w-full h-[400px] bg-white/5 animate-pulse rounded-3xl mb-16"></div>
         
-        {/* Footer muhtemelen kendi içinde kontrol yapıyor, o yüzden dokunmadım */}
-        <FooterWrapper />
-        
-        {/* ARTIK BURADA WRAPPER VAR */}
-        {/* Admin sayfalarında otomatik olarak gizlenecek */}
-        <BottomNavWrapper />
-        
-        <Toaster position="top-center" richColors />
-      </body>
-    </html>
+        {/* Grid Skeleton */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+          {/* 10 tane iskelet kart basalım */}
+          {Array.from({ length: 10 }).map((_, i) => (
+            <MangaCardSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
