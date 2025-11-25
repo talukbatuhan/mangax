@@ -22,7 +22,7 @@ export default async function LatestUpdateCard({ manga }: LatestUpdateCardProps)
     .limit(3);
 
   const isUpdated = chapters && chapters.length > 0;
-  const statusLabel = isUpdated ? '🔥 Güncel' : '✨ Yeni';
+
   const statusBg = isUpdated ? 'bg-gradient-to-r from-green-600 to-green-400' : 'bg-gradient-to-r from-red-600 to-red-400';
 
   return (
@@ -48,13 +48,7 @@ export default async function LatestUpdateCard({ manga }: LatestUpdateCardProps)
           ) : (
             <div className="w-full h-full bg-gray-900 flex items-center justify-center text-[10px] text-gray-500">Yok</div>
           )}
-          
-          {/* Canlı Etiket */}
-          <div className="absolute bottom-0 left-0 z-20">
-             <span className={`${statusBg} text-black text-[10px] font-black px-2 py-0.5 rounded-tr-md shadow-lg leading-tight tracking-wider`}>
-                {statusLabel}
-             </span>
-          </div>
+        
         </Link>
 
         {/* SAĞ: Bilgiler */}
