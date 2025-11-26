@@ -2,12 +2,16 @@
 
 import Link from "next/link";
 import SearchBar from "./SearchBar";
-import LuckyButton from "./LuckyButton"; // Rastgele Manga Butonu
+import LuckyButton from "./LuckyButton"; 
 import { createClient } from "@/lib/supabase/client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
 import { Menu, X, User as UserIcon, LogOut, Heart, ShieldCheck } from "lucide-react";
+
+// --- DÜZENLEME BURADA ---
+// Kendi admin mailini tırnak içine yaz. Örn: "ahmet@gmail.com"
+const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL; 
 
 export default function Navbar() {
   const [user, setUser] = useState<User | null>(null);
@@ -17,18 +21,22 @@ export default function Navbar() {
   const router = useRouter();
   const supabase = createClient();
 
-  // Scroll Takibi (Aşağı kayınca navbar koyulaşsın)
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Kullanıcı ve Profil Verisi Çekme
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
+
+      // KONTROL İÇİN KONSOLA YAZDIRIYORUZ (F12 -> Console'dan bakabilirsin)
+      if (user) {
+        console.log("Giriş yapan:", user.email);
+        console.log("Admin mi?:", user.email === ADMIN_EMAIL);
+      }
 
       if (user) {
         const { data: profile } = await supabase
@@ -42,7 +50,6 @@ export default function Navbar() {
     getUser();
   }, [supabase]);
 
-  // Çıkış Yapma İşlemi
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
@@ -71,19 +78,14 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* --- ORTA: ARAMA + LUCKY BUTTON (Masaüstü) --- */}
+        {/* --- ORTA: ARAMA + LUCKY BUTTON --- */}
         <div className="hidden md:flex flex-1 items-center justify-end gap-4 mr-6">
-           
-           {/* Lucky Button (Solda dursun, arama büyürken bunu itmesin) */}
            <div className="shrink-0">
               <LuckyButton />
            </div>
-
-           {/* Arama Çubuğu */}
            <div className="relative">
               <SearchBar />
            </div>
-
         </div>
 
         {/* --- MOBİL MENÜ BUTONU --- */}
@@ -99,10 +101,10 @@ export default function Navbar() {
           
           {user ? (
             <>
-               {/* Sadece Admin Görür */}
-               {user.email === 'senin-mail-adresin@gmail.com' && (
-                  <Link href="/admin" className="text-gray-400 hover:text-red-400 transition" title="Admin Paneli">
-                    <ShieldCheck size={20} />
+               {/* --- ADMIN BUTONU BURADA --- */}
+               {user.email === ADMIN_EMAIL && (
+                  <Link href="/admin" className="flex items-center gap-2 text-xs font-bold text-red-400 border border-red-500/30 px-3 py-1.5 rounded hover:bg-red-500/10 transition uppercase tracking-wider">
+                    <ShieldCheck size={14} /> PANEL
                   </Link>
                )}
 
@@ -139,11 +141,9 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* --- MOBİL MENÜ (AÇILIR PENCERE) --- */}
+      {/* --- MOBİL MENÜ --- */}
       <div className={`md:hidden absolute top-16 left-0 w-full bg-[#0f0f0f] border-b border-white/10 overflow-hidden transition-all duration-300 ease-in-out ${isMenuOpen ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}>
         <div className="p-6 space-y-6">
-            
-            {/* Mobilde Arama ve Lucky Button */}
             <div className="w-full space-y-4">
                <SearchBar />
                <div className="flex justify-center w-full">
@@ -153,7 +153,6 @@ export default function Navbar() {
 
             {user ? (
               <div className="space-y-4 border-t border-white/5 pt-4">
-                {/* Profil Bilgisi */}
                 <div className="flex items-center gap-3 pb-4 border-b border-white/5">
                     <div className="w-10 h-10 rounded-full bg-gray-800 overflow-hidden border border-white/10">
                         {avatarUrl ? <img src={avatarUrl} className="object-cover w-full h-full" alt="Avatar" /> : <div className="w-full h-full flex items-center justify-center text-white">{user.email?.charAt(0).toUpperCase()}</div>}
@@ -168,7 +167,8 @@ export default function Navbar() {
                    <Heart size={18} /> Kütüphanem
                 </Link>
 
-                {user.email === 'senin-mail-adresin@gmail.com' && (
+                {/* MOBİL ADMIN BUTONU */}
+                {user.email === ADMIN_EMAIL && (
                     <Link href="/admin" onClick={() => setIsMenuOpen(false)} className="flex items-center gap-3 text-red-400 font-bold p-2 rounded hover:bg-red-500/10 transition">
                       <ShieldCheck size={18} /> Admin Paneli
                     </Link>

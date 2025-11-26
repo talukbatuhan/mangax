@@ -39,7 +39,7 @@ export default function LuckyButton() {
         ) : (
           <>
             <Dice5 size={16} className="group-hover:rotate-180 transition-transform duration-500" />
-            <span className="uppercase tracking-wider">Şanslı</span>
+            <span className="uppercase tracking-wider">Şanslı Hissediyorum</span>
             <Sparkles size={14} className="text-yellow-300 animate-pulse" />
           </>
         )}
