@@ -2,18 +2,19 @@ import Navbar from "@/app/components/Navbar";
 import MangaCard from "@/app/components/MangaCard";
 import CommentSection from "@/app/components/CommentSection";
 import FavoriteButton from "@/app/components/FavoriteButton";
-import RatingStars from "@/app/components/RatingStars"; // Puanlama Bileşeni
-import { createClient } from "@/lib/supabase/server"; // Server Client (Auth için gerekli)
+import RatingStars from "@/app/components/RatingStars";
+import { createClient } from "@/lib/supabase/server";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Manga } from "@/app/types";
+import { Calendar, Eye, Layers, User, Hash, BookOpen, Sparkles } from "lucide-react";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-// 1. SEO METADATA (Google için)
+// 1. SEO METADATA
 export async function generateMetadata({ params }: PageProps) {
   const { slug } = await params;
   const supabase = await createClient();
@@ -27,12 +28,12 @@ export async function generateMetadata({ params }: PageProps) {
 
 export default async function MangaDetail({ params }: PageProps) {
   const { slug } = await params;
-  const supabase = await createClient(); // Güvenli Server Client
+  const supabase = await createClient();
 
-  // 1. Kullanıcı Giriş Yapmış mı? (Kendi puanını göstermek için)
+  // 1. Kullanıcı Giriş Kontrolü
   const { data: { user } } = await supabase.auth.getUser();
 
-  // 2. Şu anki Mangayı Bul
+  // 2. Mangayı Bul
   const { data: manga } = await supabase
     .from("mangas")
     .select("*")
@@ -41,7 +42,7 @@ export default async function MangaDetail({ params }: PageProps) {
 
   if (!manga) return notFound();
 
-  // 3. Kullanıcının Puanını Bul (Eğer giriş yaptıysa)
+  // 3. Kullanıcı Puanı
   let userRating = 0;
   if (user) {
     const { data: ratingData } = await supabase
@@ -51,7 +52,6 @@ export default async function MangaDetail({ params }: PageProps) {
       .eq("user_id", user.id)
       .single();
     
-    // Veritabanı 10 üzerinden, biz 5 yıldız gösteriyoruz
     if (ratingData) userRating = ratingData.score / 2; 
   }
 
@@ -62,7 +62,7 @@ export default async function MangaDetail({ params }: PageProps) {
     .eq("manga_id", manga.id)
     .order("chapter_number", { ascending: false });
 
-  // 5. BENZER MANGALARI BUL
+  // 5. Benzer Mangalar
   let similarMangas: Manga[] = [];
   if (manga.genres && manga.genres.length > 0) {
     const { data: similar } = await supabase
@@ -70,164 +70,223 @@ export default async function MangaDetail({ params }: PageProps) {
       .select("*")
       .overlaps("genres", manga.genres)
       .neq("id", manga.id)
-      .limit(5);
+      .limit(6); // 6 tane çekelim grid düzgün dursun
       
     similarMangas = (similar as unknown as Manga[]) || [];
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-green-500 selection:text-black">
+    // Ana sayfa ile aynı arkaplan rengi (#0f0f0f)
+    <div className="min-h-screen bg-[#0f0f0f] text-white font-sans selection:bg-green-500 selection:text-black relative overflow-hidden">
+      
+      {/* Ambiyans Işığı (Ana Sayfadan Alıntı) */}
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-green-500/10 rounded-full blur-[150px] -z-10 pointer-events-none"></div>
+
       <Navbar />
       
-      {/* --- ÜST BANNER (HEADER) --- */}
-      <div className="relative h-[450px] w-full overflow-hidden">
-        {/* Arka Plan Resmi (Blur Efektli) */}
-        {manga.cover_url && (
-           <Image 
-             src={manga.cover_url} 
-             alt="banner" 
-             fill 
-             className="object-cover opacity-20 blur-2xl scale-110" 
-           />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/60 to-transparent" />
+      {/* --- HERO / BANNER ALANI --- */}
+      <div className="relative w-full border-b border-white/5 pb-10">
         
-        {/* Başlık ve Bilgiler */}
-        <div className="absolute bottom-0 left-0 p-6 w-full pb-12">
-          <div className="container mx-auto flex flex-col md:flex-row items-end gap-8">
-             {/* Kapak Resmi */}
-             <div className="relative w-48 h-72 rounded-xl overflow-hidden border-4 border-gray-800/50 shadow-2xl shadow-black shrink-0 hidden md:block">
-               {manga.cover_url && (
-                 <Image src={manga.cover_url} fill className="object-cover" alt="cover"/>
-               )}
-             </div>
-             
-             <div className="flex-1 mb-2">
-               {/* Tür Etiketleri */}
-               {manga.genres && (
-                 <div className="flex flex-wrap gap-2 mb-4">
-                   {manga.genres.map((g: string) => (
-                     <span key={g} className="text-xs font-bold bg-green-600/20 text-green-400 border border-green-600/30 px-3 py-1 rounded-full uppercase tracking-wide hover:bg-green-600/40 transition cursor-default">
-                       {g}
-                     </span>
-                   ))}
-                 </div>
-               )}
+        {/* Arka Plan Blur Resim */}
+        <div className="absolute inset-0 h-[400px] overflow-hidden -z-10">
+             {manga.cover_url && (
+                <div 
+                    className="absolute inset-0 bg-cover bg-center opacity-30 blur-3xl scale-125"
+                    style={{ backgroundImage: `url('${manga.cover_url}')` }}
+                />
+             )}
+             <div className="absolute inset-0 bg-gradient-to-b from-[#0f0f0f]/80 via-[#0f0f0f] to-[#0f0f0f]" />
+        </div>
 
-               {/* Başlık ve Favori */}
-               <div className="flex flex-wrap items-center gap-4 mb-2">
-                 <h1 className="text-4xl md:text-6xl font-black text-white drop-shadow-2xl leading-none">
-                    {manga.title}
-                 </h1>
-                 <FavoriteButton mangaId={manga.id} slug={manga.slug} />
-               </div>
-               
-               {/* Puanlama Bileşeni (YENİ) */}
-               <div className="mb-4">
-                  <RatingStars 
-                    mangaId={manga.id} 
-                    initialRating={userRating} 
-                    average={manga.rating_avg || 0}
-                    count={manga.rating_count || 0}
-                    userId={user?.id}
-                  />
-               </div>
-               
-               {/* Yazar ve İstatistikler */}
-               <div className="flex items-center gap-6 text-gray-300 font-medium text-sm md:text-base">
-                  <span className="flex items-center gap-2"><span className="text-green-500">✍️</span> {manga.author || "Yazar Bilinmiyor"}</span>
-                  <span className="flex items-center gap-2"><span className="text-green-500">👁️</span> {manga.views?.toLocaleString() || 0} Okunma</span>
-                  <span className="flex items-center gap-2"><span className="text-green-500">📅</span> {new Date(manga.created_at).getFullYear()}</span>
-               </div>
-             </div>
+        <div className="container mx-auto px-4 pt-24 md:pt-32">
+          <div className="flex flex-col md:flex-row gap-8 items-start">
+            
+            {/* SOL: KAPAK RESMİ */}
+            <div className="shrink-0 relative group mx-auto md:mx-0">
+                <div className="w-[220px] h-[330px] rounded-lg overflow-hidden shadow-[0_0_30px_rgba(0,0,0,0.5)] border border-white/10 relative z-10">
+                    {manga.cover_url ? (
+                        <Image src={manga.cover_url} fill className="object-cover transition-transform duration-700 group-hover:scale-110" alt={manga.title}/>
+                    ) : (
+                        <div className="w-full h-full bg-gray-800 flex items-center justify-center">Resim Yok</div>
+                    )}
+                </div>
+                {/* Resim Altı Glow Efekti */}
+                <div className="absolute -inset-2 bg-green-500/20 blur-xl rounded-full -z-0 opacity-0 group-hover:opacity-100 transition duration-500" />
+            </div>
+
+            {/* SAĞ: BİLGİLER */}
+            <div className="flex-1 w-full space-y-5 text-center md:text-left">
+                
+                {/* Başlık ve Etiketler */}
+                <div>
+                    <div className="flex flex-wrap justify-center md:justify-start gap-2 mb-3">
+                         <span className="px-3 py-1 bg-green-500 text-black text-[10px] font-black uppercase tracking-widest rounded-sm">
+                            {chapters && chapters.length > 0 ? "Güncel" : "Yeni"}
+                         </span>
+                         {manga.genres?.slice(0, 3).map((g: string) => (
+                             <span key={g} className="px-3 py-1 bg-white/5 text-gray-300 border border-white/5 text-[10px] font-bold uppercase tracking-widest rounded-sm">
+                                {g}
+                             </span>
+                         ))}
+                    </div>
+                    
+                    <h1 className="text-4xl md:text-6xl font-black text-white leading-tight drop-shadow-xl mb-4">
+                        {manga.title}
+                    </h1>
+
+                    <div className="flex flex-wrap justify-center md:justify-start gap-4 items-center">
+                        <RatingStars 
+                            mangaId={manga.id} 
+                            initialRating={userRating} 
+                            average={manga.rating_avg || 0}
+                            count={manga.rating_count || 0}
+                            userId={user?.id}
+                        />
+                        <FavoriteButton mangaId={manga.id} slug={manga.slug} />
+                    </div>
+                </div>
+
+                {/* İstatistik Grid'i */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 border-y border-white/5 py-4 bg-white/[0.02] rounded-lg">
+                    <div className="flex flex-col items-center justify-center border-r border-white/5 px-4">
+                        <User size={18} className="text-green-500 mb-1" />
+                        <span className="text-xs text-gray-400 uppercase tracking-wider">Yazar</span>
+                        <span className="font-bold text-sm text-white truncate max-w-full">{manga.author || "-"}</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center border-r border-white/5 px-4">
+                        <Eye size={18} className="text-green-500 mb-1" />
+                        <span className="text-xs text-gray-400 uppercase tracking-wider">Okunma</span>
+                        <span className="font-bold text-sm text-white">{manga.views?.toLocaleString() || 0}</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center border-r border-white/5 px-4">
+                        <Layers size={18} className="text-green-500 mb-1" />
+                        <span className="text-xs text-gray-400 uppercase tracking-wider">Bölüm</span>
+                        <span className="font-bold text-sm text-white">{chapters?.length || 0}</span>
+                    </div>
+                    <div className="flex flex-col items-center justify-center px-4">
+                        <Calendar size={18} className="text-green-500 mb-1" />
+                        <span className="text-xs text-gray-400 uppercase tracking-wider">Yıl</span>
+                        <span className="font-bold text-sm text-white">{new Date(manga.created_at).getFullYear()}</span>
+                    </div>
+                </div>
+
+                {/* Açıklama */}
+                <p className="text-gray-400 leading-relaxed text-sm md:text-base max-w-4xl mx-auto md:mx-0">
+                    {manga.description || "Bu seri için henüz bir açıklama girilmemiş."}
+                </p>
+
+            </div>
           </div>
         </div>
       </div>
 
-      {/* --- ANA İÇERİK --- */}
-      <div className="container mx-auto px-6 py-12 grid lg:grid-cols-3 gap-12">
-        
-        {/* SOL KOLON: Özet, Bölümler ve Yorumlar (%66) */}
-        <div className="lg:col-span-2 space-y-12">
-          
-          {/* Özet */}
-          <section>
-            <h2 className="text-xl font-bold mb-4 text-white flex items-center gap-2">
-                <span className="w-1 h-6 bg-green-500 rounded-full"></span> Özet
-            </h2>
-            <p className="text-gray-300 leading-relaxed text-lg bg-gray-900/30 p-6 rounded-2xl border border-white/5">
-                {manga.description || "Bu seri için henüz bir açıklama girilmemiş."}
-            </p>
-          </section>
-
-          {/* Bölüm Listesi */}
-          <section>
-            <h2 className="text-xl font-bold mb-4 text-white flex items-center gap-2">
-                <span className="w-1 h-6 bg-green-500 rounded-full"></span> Bölümler 
-                <span className="text-sm text-gray-500 font-normal ml-2">({chapters?.length || 0})</span>
-            </h2>
+      {/* --- ANA İÇERİK (Izgara) --- */}
+      <div className="container mx-auto px-4 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
             
-            <div className="grid gap-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                {chapters?.map((chapter) => (
-                <Link 
-                    href={`/manga/${slug}/${chapter.chapter_number}`} 
-                    key={chapter.id} 
-                    className="flex items-center justify-between bg-gray-900 p-4 rounded-xl border border-gray-800 hover:border-green-500/50 hover:bg-gray-800 transition group"
-                >
-                    <div className="flex items-center gap-4">
-                        <span className="font-bold text-xl text-gray-600 group-hover:text-green-500 transition w-10 text-center">
-                            {chapter.chapter_number}
-                        </span>
-                        <div>
-                            <span className="block font-medium text-gray-200 group-hover:text-white">
-                                {chapter.title || `Bölüm ${chapter.chapter_number}`}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                                {new Date(chapter.created_at).toLocaleDateString("tr-TR")}
-                            </span>
+            {/* SOL: BÖLÜMLER ve YORUMLAR (Geniş Alan - 9/12) */}
+            <div className="lg:col-span-8 space-y-10">
+                
+                {/* BÖLÜM LİSTESİ */}
+                <div className="bg-[#1a1a1a] border border-white/5 rounded-xl p-6 shadow-xl">
+                    <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
+                        <h3 className="text-xl font-black uppercase tracking-wide flex items-center gap-2">
+                             <BookOpen className="text-green-500" /> Bölümler
+                        </h3>
+                        <div className="text-xs text-gray-500 font-mono">
+                            Toplam {chapters?.length} Bölüm
                         </div>
                     </div>
-                    <span className="px-4 py-1.5 bg-white/5 text-xs font-bold rounded-full text-gray-400 group-hover:bg-green-600 group-hover:text-white transition">
-                        Oku
-                    </span>
-                </Link>
-                ))}
-                
-                {(!chapters || chapters.length === 0) && (
-                    <div className="p-10 text-center border border-dashed border-gray-800 rounded-xl text-gray-500">
-                        Henüz bölüm yüklenmemiş.
-                    </div>
-                )}
-            </div>
-          </section>
 
-          {/* Yorum Alanı */}
-          <section>
-             <CommentSection mangaId={manga.id} />
-          </section>
-        </div>
-
-        {/* SAĞ KOLON: Benzer Mangalar (%33) */}
-        <div className="lg:col-span-1">
-            <div className="sticky top-24">
-                <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                    <span className="text-xl">🔥</span> Benzer Seriler
-                </h3>
-                
-                {similarMangas.length > 0 ? (
-                    <div className="grid gap-6">
-                        {similarMangas.map((simManga) => (
-                            <MangaCard key={simManga.id} manga={simManga} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                        {chapters?.map((chapter) => (
+                            <Link 
+                                href={`/manga/${slug}/${chapter.chapter_number}`} 
+                                key={chapter.id}
+                                className="group flex items-center justify-between bg-[#0f0f0f] border border-white/5 p-4 rounded-lg hover:border-green-500/50 hover:bg-[#151515] transition-all duration-300"
+                            >
+                                <div className="flex flex-col">
+                                    <span className="text-gray-400 text-xs uppercase tracking-widest group-hover:text-green-500 transition-colors">
+                                        Bölüm {chapter.chapter_number}
+                                    </span>
+                                    <span className="text-white font-bold text-sm mt-0.5 truncate max-w-[200px]">
+                                        {chapter.title || "İsimsiz Bölüm"}
+                                    </span>
+                                </div>
+                                <span className="text-[10px] text-gray-600 font-medium bg-white/5 px-2 py-1 rounded group-hover:bg-green-600 group-hover:text-white transition-colors">
+                                    OKU
+                                </span>
+                            </Link>
                         ))}
+                        {(!chapters || chapters.length === 0) && (
+                            <div className="col-span-full py-10 text-center text-gray-500 border border-dashed border-white/10 rounded-lg">
+                                Henüz bölüm yüklenmedi.
+                            </div>
+                        )}
                     </div>
-                ) : (
-                    <div className="p-6 bg-gray-900/50 rounded-xl border border-white/5 text-center">
-                        <p className="text-gray-500 text-sm">Henüz benzer seri bulunamadı.</p>
-                    </div>
-                )}
-            </div>
-        </div>
+                </div>
 
+                {/* YORUMLAR */}
+                <div className="bg-[#1a1a1a] border border-white/5 rounded-xl p-6 shadow-xl">
+                    <h3 className="text-xl font-black uppercase tracking-wide flex items-center gap-2 mb-6">
+                        <Hash className="text-green-500" /> Yorumlar
+                    </h3>
+                    <CommentSection mangaId={manga.id} />
+                </div>
+
+            </div>
+
+            {/* SAĞ: BENZER SERİLER (Sidebar - 3/12) */}
+            <div className="lg:col-span-4">
+                <div className="sticky top-24 space-y-6">
+                    
+                    <div className="flex items-center gap-2 mb-4">
+                        <Sparkles className="text-green-500" size={20} />
+                        <h3 className="text-lg font-black uppercase tracking-wide text-white">
+                            Benzer Seriler
+                        </h3>
+                    </div>
+
+                    {similarMangas.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-4">
+                            {/* MangaCard'ı yatay mini kart olarak kullanabilirsin veya Sidebar'daki yapıyı buraya da uyarlayabilirsin. 
+                                Eğer MangaCard dikey ise, burada grid-cols-2 yapıp küçültebiliriz. 
+                                Ama sidebar genelde liste mantığı sever. */}
+                            {similarMangas.map((simManga) => (
+                                <Link href={`/manga/${simManga.slug}`} key={simManga.id} className="group flex gap-4 bg-[#1a1a1a] hover:bg-[#202020] border border-white/5 p-3 rounded-lg transition-colors">
+                                    <div className="relative w-16 h-24 shrink-0 rounded overflow-hidden">
+                                        {simManga.cover_url && (
+                                            <Image src={simManga.cover_url} fill className="object-cover group-hover:scale-110 transition-transform duration-500" alt={simManga.title} />
+                                        )}
+                                    </div>
+                                    <div className="flex flex-col justify-center">
+                                        <h4 className="font-bold text-sm text-white group-hover:text-green-400 transition-colors line-clamp-2 leading-tight">
+                                            {simManga.title}
+                                        </h4>
+                                        <div className="flex flex-wrap gap-1 mt-2">
+                                            {simManga.genres?.slice(0, 2).map((g:string) => (
+                                                <span key={g} className="text-[9px] px-1.5 py-0.5 bg-white/5 text-gray-400 rounded uppercase">
+                                                    {g}
+                                                </span>
+                                            ))}
+                                        </div>
+                                        <span className="text-[10px] text-gray-500 mt-1">
+                                           👁️ {simManga.views?.toLocaleString()}
+                                        </span>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="p-4 bg-[#1a1a1a] rounded border border-white/5 text-center text-sm text-gray-500">
+                            Benzer seri bulunamadı.
+                        </div>
+                    )}
+
+                </div>
+            </div>
+
+        </div>
       </div>
     </div>
   );

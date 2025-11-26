@@ -19,7 +19,7 @@ export default async function AdminDashboard() {
     supabase.from("comments").select("*", { count: "exact", head: true }),
     supabase.from("mangas").select("views"),
     supabase.from("mangas").select("title, views").order("views", { ascending: false }).limit(6),
-    supabase.from("mangas").select("title, rating_avg").order("rating_avg", { ascending: false }).limit(5)
+    supabase.from("mangas").select("title, rating_avg").order("rating_avg", { ascending: false }).limit(5),
   ]);
 
   const totalViewsCount = allViews?.reduce((acc, curr) => acc + (curr.views || 0), 0) || 0;

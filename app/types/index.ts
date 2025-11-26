@@ -25,4 +25,18 @@ export interface Chapter {
   created_at: string;
 }
 
-// Yorum ve diğer yardımcı tipler varsa onları da buraya eklemeyi unutma.
+
+export interface Comment {
+  id: number;            // Değişti: string -> number
+  content: string;
+  created_at: string;
+  user_id: string;       // Supabase Auth ID'leri her zaman string (UUID) kalır
+  manga_id: number;      // Değişti: string -> number
+  parent_id: number | null; // Değişti: string -> number
+  user: {
+    username: string;
+    avatar_url: string | null;
+  };
+  // Frontend'de cevapları gruplamak için kullanacağımız alan
+  replies?: Comment[]; 
+}

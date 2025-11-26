@@ -13,27 +13,39 @@ const poppins = Poppins({
   variable: "--font-poppins",
 });
 
-// 1. Viewport Ayarları (Mobil uyumluluk ve renkler)
 export const viewport: Viewport = {
   themeColor: "#0a0a0a",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1, // Kullanıcının zoom yapmasını engeller (Uygulama hissi için)
+  maximumScale: 1,
   userScalable: false, 
 };
 
-// 2. Metadata (SEO ve PWA)
+// Kendi domainini buraya yaz
+const BASE_URL = 'https://talucscans.com'; 
+
 export const metadata: Metadata = {
-  title: "TalucScans",
-  description: "Türkçe Manga Okuma Platformu",
-  manifest: "/manifest.webmanifest", // Manifest dosyasını gösteriyoruz
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "TalucScans",
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: "TalucScans - Türkçe Manga ve Webtoon Oku",
+    template: "%s | TalucScans", // Örn: Solo Leveling | TalucScans
   },
-  formatDetection: {
-    telephone: false,
+  description: "En sevdiğin mangaları, webtoonları ve çizgi romanları yüksek kalitede, ücretsiz ve Türkçe olarak TalucScans'ta oku.",
+  keywords: ["manga oku", "türkçe manga", "webtoon oku", "manga indir", "online manga"],
+  openGraph: {
+    title: "TalucScans - Türkçe Manga Oku",
+    description: "En güncel manga ve webtoon arşivi.",
+    url: BASE_URL,
+    siteName: "TalucScans",
+    locale: "tr_TR",
+    type: "website",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  icons: {
+    icon: "/favicon.ico", // Public klasörüne favicon.ico atmayı unutma
   },
 };
 
