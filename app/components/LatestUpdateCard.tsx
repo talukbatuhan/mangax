@@ -26,7 +26,7 @@ export default async function LatestUpdateCard({ manga }: LatestUpdateCardProps)
   const statusBg = isUpdated ? 'bg-gradient-to-r from-green-600 to-green-400' : 'bg-gradient-to-r from-red-600 to-red-400';
 
   return (
-    <div className="group relative  overflow-hidden transition-all duration-300 hover:shadow-[0_0_25px_-5px_rgba(34,197,94,0.4)] hover:-translate-y-1 h-[140px]">
+    <div className="group relative overflow-hidden transition-all duration-300 hover:shadow-[0_0_25px_-5px_rgba(34,197,94,0.4)] h-[140px]">
       
       {/* Border Gradient Efekti */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-green-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>

@@ -57,7 +57,7 @@ export default function AvatarSelector({ userId, currentAvatar }: { userId: stri
   };
 
   return (
-    <div className="bg-gray-900 p-6 rounded-2xl border border-gray-800 relative overflow-hidden">
+    <div className="bg-gray-900 p-8 rounded-2xl border border-gray-800 relative overflow-hidden">
       
       {/* Üst Başlık ve Geri Dön Butonu */}
       <div className="flex justify-between items-center mb-6">
@@ -87,7 +87,7 @@ export default function AvatarSelector({ userId, currentAvatar }: { userId: stri
               className={`relative group rounded-xl overflow-hidden transition-all duration-200 ${
                 isSelected 
                   ? "ring-4 ring-green-500 scale-95 opacity-100" 
-                  : "hover:scale-105 opacity-70 hover:opacity-100"
+                  : "hover:scale-101 opacity-70 hover:opacity-100"
               }`}
             >
               <div className="aspect-square relative bg-gray-800">

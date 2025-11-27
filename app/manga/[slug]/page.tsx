@@ -7,14 +7,36 @@ import { createClient } from "@/lib/supabase/server";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Manga } from "@/app/types";
+import { Manga } from "@/app/types"; // Senin genel Manga tipin
 import { Calendar, Eye, Layers, User, Hash, BookOpen, Sparkles } from "lucide-react";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-// 1. SEO METADATA
+// 1. TİP TANIMLAMASI (Supabase'den gelen ilişkisel veri yapısı)
+type MangaWithRelations = {
+  id: string; // veya number, veritabanına göre
+  title: string;
+  slug: string;
+  description: string | null;
+  author: string | null;
+  cover_url: string | null;
+  views: number;
+  rating_avg: number | null;
+  rating_count: number | null;
+  created_at: string;
+  // Eski sütun (Hala veritabanında duruyorsa overlaps sorgusu için lazım olabilir)
+  genres: string[] | null; 
+  // Yeni İlişkisel Tablo
+  manga_genres: {
+    genres: {
+      name: string;
+    } | null;
+  }[];
+};
+
+// SEO METADATA
 export async function generateMetadata({ params }: PageProps) {
   const { slug } = await params;
   const supabase = await createClient();
@@ -33,16 +55,40 @@ export default async function MangaDetail({ params }: PageProps) {
   // 1. Kullanıcı Giriş Kontrolü
   const { data: { user } } = await supabase.auth.getUser();
 
-  // 2. Mangayı Bul
-  const { data: manga } = await supabase
+  // 2. Mangayı Bul (İlişkisel Veri ile)
+  const { data: rawData } = await supabase
     .from("mangas")
-    .select("*")
+    .select(`
+      *,
+      manga_genres (
+        genres (
+          name
+        )
+      )
+    `)
     .eq("slug", slug)
     .single();
 
-  if (!manga) return notFound();
+  if (!rawData) return notFound();
 
-  // 3. Kullanıcı Puanı
+  // TÜR DÖNÜŞÜMÜ (Type Casting)
+  // Gelen veriyi yukarıda tanımladığımız 'MangaWithRelations' tipine zorluyoruz.
+  // Bu işlem 'any' hatasını çözer.
+  const rawManga = rawData as unknown as MangaWithRelations;
+
+  // 3. Veri İşleme
+  // item'ın tipi artık bilindiği için :any yazmamıza gerek yok.
+  const genreList = rawManga.manga_genres
+    ?.map((item) => item.genres?.name)
+    .filter((name): name is string => !!name) || []; // null olanları temizle ve string[] olduğunu garanti et
+  
+  // Manga objesini güncelle (eski genres sütunu yerine yenisini koy)
+  const manga = {
+    ...rawManga,
+    genres: genreList 
+  };
+
+  // 4. Kullanıcı Puanı
   let userRating = 0;
   if (user) {
     const { data: ratingData } = await supabase
@@ -55,31 +101,33 @@ export default async function MangaDetail({ params }: PageProps) {
     if (ratingData) userRating = ratingData.score / 2; 
   }
 
-  // 4. Bölümleri Çek
+  // 5. Bölümleri Çek
   const { data: chapters } = await supabase
     .from("chapters")
     .select("*")
     .eq("manga_id", manga.id)
     .order("chapter_number", { ascending: false });
 
-  // 5. Benzer Mangalar
+  // 6. Benzer Mangalar
   let similarMangas: Manga[] = [];
   if (manga.genres && manga.genres.length > 0) {
+    // Not: .overlaps fonksiyonu veritabanındaki ARRAY (dizi) sütununda çalışır.
+    // Eğer veritabanındaki 'genres' sütunu boşsa bu kısım çalışmayabilir.
+    // Tam geçiş sonrası burayı da ilişkisel sorguya çevirmek gerekebilir ama şimdilik bu şekilde bırakıyoruz.
     const { data: similar } = await supabase
       .from("mangas")
       .select("*")
-      .overlaps("genres", manga.genres)
+      .overlaps("genres", manga.genres) // Postgres array sütunu kullanır
       .neq("id", manga.id)
-      .limit(6); // 6 tane çekelim grid düzgün dursun
+      .limit(6);
       
     similarMangas = (similar as unknown as Manga[]) || [];
   }
 
   return (
-    // Ana sayfa ile aynı arkaplan rengi (#0f0f0f)
     <div className="min-h-screen bg-[#0f0f0f] text-white font-sans selection:bg-green-500 selection:text-black relative overflow-hidden">
       
-      {/* Ambiyans Işığı (Ana Sayfadan Alıntı) */}
+      {/* Ambiyans Işığı */}
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-green-500/10 rounded-full blur-[150px] -z-10 pointer-events-none"></div>
 
       <Navbar />
@@ -91,8 +139,8 @@ export default async function MangaDetail({ params }: PageProps) {
         <div className="absolute inset-0 h-[400px] overflow-hidden -z-10">
              {manga.cover_url && (
                 <div 
-                    className="absolute inset-0 bg-cover bg-center opacity-30 blur-3xl scale-125"
-                    style={{ backgroundImage: `url('${manga.cover_url}')` }}
+                   className="absolute inset-0 bg-cover bg-center opacity-30 blur-3xl scale-125"
+                   style={{ backgroundImage: `url('${manga.cover_url}')` }}
                 />
              )}
              <div className="absolute inset-0 bg-gradient-to-b from-[#0f0f0f]/80 via-[#0f0f0f] to-[#0f0f0f]" />
@@ -123,7 +171,9 @@ export default async function MangaDetail({ params }: PageProps) {
                          <span className="px-3 py-1 bg-green-500 text-black text-[10px] font-black uppercase tracking-widest rounded-sm">
                             {chapters && chapters.length > 0 ? "Güncel" : "Yeni"}
                          </span>
-                         {manga.genres?.slice(0, 3).map((g: string) => (
+                         
+                         {/* GÜNCEL TÜRLER LİSTESİ */}
+                         {manga.genres?.slice(0, 3).map((g) => (
                              <span key={g} className="px-3 py-1 bg-white/5 text-gray-300 border border-white/5 text-[10px] font-bold uppercase tracking-widest rounded-sm">
                                 {g}
                              </span>
@@ -136,13 +186,13 @@ export default async function MangaDetail({ params }: PageProps) {
 
                     <div className="flex flex-wrap justify-center md:justify-start gap-4 items-center">
                         <RatingStars 
-                            mangaId={manga.id} 
+                            mangaId={String(manga.id)} // ID tipine göre string gerekebilir
                             initialRating={userRating} 
                             average={manga.rating_avg || 0}
                             count={manga.rating_count || 0}
                             userId={user?.id}
                         />
-                        <FavoriteButton mangaId={manga.id} slug={manga.slug} />
+                        <FavoriteButton mangaId={String(manga.id)} slug={manga.slug} />
                     </div>
                 </div>
 
@@ -180,11 +230,11 @@ export default async function MangaDetail({ params }: PageProps) {
         </div>
       </div>
 
-      {/* --- ANA İÇERİK (Izgara) --- */}
+      {/* --- ANA İÇERİK --- */}
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
             
-            {/* SOL: BÖLÜMLER ve YORUMLAR (Geniş Alan - 9/12) */}
+            {/* SOL: BÖLÜMLER ve YORUMLAR */}
             <div className="lg:col-span-8 space-y-10">
                 
                 {/* BÖLÜM LİSTESİ */}
@@ -207,10 +257,10 @@ export default async function MangaDetail({ params }: PageProps) {
                             >
                                 <div className="flex flex-col">
                                     <span className="text-gray-400 text-xs uppercase tracking-widest group-hover:text-green-500 transition-colors">
-                                        Bölüm {chapter.chapter_number}
+                                         Bölüm {chapter.chapter_number}
                                     </span>
                                     <span className="text-white font-bold text-sm mt-0.5 truncate max-w-[200px]">
-                                        {chapter.title || "İsimsiz Bölüm"}
+                                         {chapter.title || "İsimsiz Bölüm"}
                                     </span>
                                 </div>
                                 <span className="text-[10px] text-gray-600 font-medium bg-white/5 px-2 py-1 rounded group-hover:bg-green-600 group-hover:text-white transition-colors">
@@ -231,12 +281,12 @@ export default async function MangaDetail({ params }: PageProps) {
                     <h3 className="text-xl font-black uppercase tracking-wide flex items-center gap-2 mb-6">
                         <Hash className="text-green-500" /> Yorumlar
                     </h3>
-                    <CommentSection mangaId={manga.id} />
+                    <CommentSection mangaId={String(manga.id)} />
                 </div>
 
             </div>
 
-            {/* SAĞ: BENZER SERİLER (Sidebar - 3/12) */}
+            {/* SAĞ: BENZER SERİLER */}
             <div className="lg:col-span-4">
                 <div className="sticky top-24 space-y-6">
                     
@@ -249,9 +299,6 @@ export default async function MangaDetail({ params }: PageProps) {
 
                     {similarMangas.length > 0 ? (
                         <div className="grid grid-cols-1 gap-4">
-                            {/* MangaCard'ı yatay mini kart olarak kullanabilirsin veya Sidebar'daki yapıyı buraya da uyarlayabilirsin. 
-                                Eğer MangaCard dikey ise, burada grid-cols-2 yapıp küçültebiliriz. 
-                                Ama sidebar genelde liste mantığı sever. */}
                             {similarMangas.map((simManga) => (
                                 <Link href={`/manga/${simManga.slug}`} key={simManga.id} className="group flex gap-4 bg-[#1a1a1a] hover:bg-[#202020] border border-white/5 p-3 rounded-lg transition-colors">
                                     <div className="relative w-16 h-24 shrink-0 rounded overflow-hidden">
@@ -264,7 +311,7 @@ export default async function MangaDetail({ params }: PageProps) {
                                             {simManga.title}
                                         </h4>
                                         <div className="flex flex-wrap gap-1 mt-2">
-                                            {simManga.genres?.slice(0, 2).map((g:string) => (
+                                            {simManga.genres?.slice(0, 2).map((g) => (
                                                 <span key={g} className="text-[9px] px-1.5 py-0.5 bg-white/5 text-gray-400 rounded uppercase">
                                                     {g}
                                                 </span>

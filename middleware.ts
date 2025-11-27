@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // 1. Supabase Client Oluştur (Çerezleri okuyabilen)
+  // 1. Response ve Supabase Client Hazırlığı
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -32,34 +32,32 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // 2. Kullanıcıyı Kontrol Et
+  // 2. Kullanıcıyı Çek
   const { data: { user } } = await supabase.auth.getUser()
+  const isAdmin = user?.email === process.env.ADMIN_EMAIL
 
-  // --- KURAL 1: ADMIN KORUMASI ---
-  // Eğer kullanıcı '/admin' sayfasına girmeye çalışıyorsa
+  // --- BAKIM MODU KODLARI TAMAMEN SİLİNDİ ---
+
+  // 3. --- ADMIN SAYFASI KORUMASI ---
   if (request.nextUrl.pathname.startsWith('/admin')) {
-    
     // Giriş yapmamışsa -> Login sayfasına at
     if (!user) {
       return NextResponse.redirect(new URL('/login?returnUrl=/admin', request.url))
     }
 
-    // Giriş yapmış ama SEN DEĞİLSEN -> Anasayfaya at (Yetkisiz)
-    if (user.email !== process.env.ADMIN_EMAIL ) {
+    // Giriş yapmış ama SEN DEĞİLSEN -> Anasayfaya at
+    if (!isAdmin) {
       return NextResponse.redirect(new URL('/', request.url))
     }
   }
 
-  // --- KURAL 2: OTURUM YENİLEME ---
-  // Supabase çerezlerini güncellemek için gereklidir
   return response
 }
 
 export const config = {
-  // Middleware hangi sayfalarda çalışsın?
+  // Matcher: Sadece admin sayfalarını korumak yeterli olabilir artık, 
+  // ama auth işlemlerinin sağlıklı çalışması için geniş kapsamlı tutuyoruz.
   matcher: [
-    '/admin/:path*', // Admin sayfaları
-    '/favorites',    // Favoriler sayfası (İsteğe bağlı)
-    // Diğer korumalı sayfalar...
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

@@ -2,7 +2,6 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 // --- 1. YENİ MANGA OLUŞTURMA ---
@@ -14,8 +13,10 @@ export async function createMangaAction(formData: FormData) {
   const desc = formData.get("desc") as string;
   const author = formData.get("author") as string;
   const coverFile = formData.get("cover") as File;
-  const genresRaw = formData.get("genres") as string;
-  const genres = genresRaw ? genresRaw.split(",").map((g) => g.trim()) : [];
+
+  // Frontend'den gelen JSON string (örn: "[1, 5, 8]")
+  const selectedGenresJson = formData.get("selected_genres") as string;
+  const genreIds: number[] = selectedGenresJson ? JSON.parse(selectedGenresJson) : [];
 
   if (!coverFile || !slug) return { success: false, error: "Eksik bilgi" };
 
@@ -32,16 +33,36 @@ export async function createMangaAction(formData: FormData) {
     data: { publicUrl },
   } = supabase.storage.from("covers").getPublicUrl(fileName);
 
-  const { error: dbError } = await supabase.from("mangas").insert({
-    title,
-    slug,
-    description: desc,
-    author,
-    cover_url: publicUrl,
-    genres,
-  });
+  // ADIM 1: Mangayı oluştur
+  const { data: manga, error: dbError } = await supabase
+    .from("mangas")
+    .insert({
+      title,
+      slug,
+      description: desc,
+      author,
+      cover_url: publicUrl,
+    })
+    .select("id") // ID'yi alıyoruz
+    .single();
 
   if (dbError) return { success: false, error: dbError.message };
+
+  // ADIM 2: Türleri Ara Tabloya (manga_genres) Ekle
+  if (genreIds.length > 0 && manga) {
+    const pivotData = genreIds.map((gId) => ({
+      manga_id: manga.id, // UUID
+      genre_id: gId,      // BigInt
+    }));
+
+    const { error: pivotError } = await supabase
+      .from("manga_genres")
+      .insert(pivotData);
+
+    if (pivotError) {
+        console.error("Türler ilişkilendirilemedi:", pivotError);
+    }
+  }
 
   revalidatePath("/admin/mangas");
   revalidatePath("/");
@@ -113,7 +134,6 @@ export async function uploadChapterAction(formData: FormData) {
     revalidatePath(`/admin/mangas/${mangaId}`);
     return { success: true };
   } catch (error) {
-    // DÜZELTME: Güvenli hata kontrolü
     const errorMessage =
       error instanceof Error ? error.message : "Bir hata oluştu";
     return { success: false, error: errorMessage };
@@ -135,19 +155,41 @@ export async function deleteManga(id: string | number) {
   revalidatePath("/");
 }
 
-// --- 5. TÜR GÜNCELLEME ---
-export async function updateMangaGenres(mangaId: string, newGenres: string[]) {
+// --- 5. TÜR GÜNCELLEME (TEK VE TEMİZ FONKSİYON) ---
+// GenreEditor.tsx bu fonksiyonu kullanacak
+export async function updateMangaGenresAction(mangaId: string, newGenreIds: number[]) {
   const supabase = await createClient();
-  await supabase.from("mangas").update({ genres: newGenres }).eq("id", mangaId);
-  revalidatePath("/admin");
-  revalidatePath("/");
+
+  // 1. Eski ilişkileri sil
+  const { error: deleteError } = await supabase
+    .from("manga_genres")
+    .delete()
+    .eq("manga_id", mangaId);
+
+  if (deleteError) throw new Error("Eski türler silinemedi");
+
+  // 2. Yeni ilişkileri ekle
+  if (newGenreIds.length > 0) {
+    const insertData = newGenreIds.map((gId) => ({
+      manga_id: mangaId,
+      genre_id: gId,
+    }));
+
+    const { error: insertError } = await supabase
+      .from("manga_genres")
+      .insert(insertData);
+
+    if (insertError) throw new Error("Yeni türler eklenemedi");
+  }
+
+  revalidatePath(`/admin/mangas/${mangaId}`);
+  revalidatePath("/admin/mangas");
 }
 
-// --- 6. SLIDER (VİTRİN) YÖNETİMİ [EKSİK OLAN BUYDU] ---
+// --- 6. SLIDER (VİTRİN) YÖNETİMİ ---
 export async function toggleSlider(mangaId: string) {
   const supabase = await createClient();
 
-  // Önce var mı diye bak
   const { data } = await supabase
     .from("slider_items")
     .select("*")
@@ -155,76 +197,95 @@ export async function toggleSlider(mangaId: string) {
     .single();
 
   if (data) {
-    // Varsa Sil
     await supabase.from("slider_items").delete().eq("manga_id", mangaId);
     revalidatePath("/admin/appearance");
     return { status: "removed" };
   } else {
-    // Yoksa Ekle
     await supabase.from("slider_items").insert({ manga_id: mangaId });
     revalidatePath("/admin/appearance");
     return { status: "added" };
   }
 }
 
+// --- YORUM SİLME ---
 export async function deleteCommentAction(commentId: number) {
   const supabase = await createClient();
-  
-  const { error } = await supabase
-    .from("comments")
-    .delete()
-    .eq("id", commentId);
+  const { error } = await supabase.from("comments").delete().eq("id", commentId);
 
   if (error) throw new Error("Yorum silinemedi: " + error.message);
-
-  revalidatePath("/admin/comments"); // Listeyi yenile
-  // Ayrıca manga detay sayfasındaki yorumları da yenilememiz iyi olur ama dinamik olduğu için zor.
-  // Admin panelini yenilemek yeterli.
+  revalidatePath("/admin/comments");
 }
 
+// --- KULLANICI SİLME ---
 export async function deleteUserAction(userId: string) {
-  // Not: 'createClient' yerine 'supabaseAdmin' kullanıyoruz.
-  
-  // 1. auth.users tablosundan sil
-  // (Bu işlem 'Cascade' sayesinde profiles, comments, favorites her şeyi otomatik siler)
   const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
-
   if (error) {
     console.error("Silme hatası:", error);
     throw new Error("Kullanıcı silinemedi: " + error.message);
   }
-
   revalidatePath("/admin/users");
 }
 
-export async function addGenre(formData: FormData) {
-  const supabase = await createClient();
-  const name = formData.get("name") as string;
-  
-  if (!name) return;
-
-  await supabase.from("genres").insert({ name });
-  revalidatePath("/admin/genres");
-}
-
-// TÜR SİL
-export async function deleteGenre(id: number) {
-  const supabase = await createClient();
-  await supabase.from("genres").delete().eq("id", id);
-  revalidatePath("/admin/genres");
-}
-
+// --- BÖLÜMLERİ GETİRME ---
 export async function getChaptersAction(mangaId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("chapters")
     .select("*")
     .eq("manga_id", mangaId)
-    .order("chapter_number", { ascending: true }); 
+    .order("chapter_number", { ascending: true });
 
   if (error) {
     console.error("Bölüm çekme hatası:", error);
     return [];
   }
   return data;
+}
+
+// --- TÜR (GENRE) YÖNETİMİ ---
+export async function addGenreAction(formData: FormData) {
+  const supabase = await createClient();
+  const name = formData.get("name") as string;
+
+  if (!name.trim()) return;
+
+  const { error } = await supabase.from("genres").insert({ name: name.trim() });
+  if (error) throw new Error("Tür eklenemedi: " + error.message);
+  revalidatePath("/admin/genres");
+}
+
+export async function deleteGenreAction(id: number) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("genres").delete().eq("id", id);
+  if (error) throw new Error("Tür silinemedi");
+  revalidatePath("/admin/genres");
+}
+
+export async function updateSettingsAction(formData: FormData) {
+  const supabase = await createClient();
+
+  const site_name = formData.get("site_name") as string;
+  const site_description = formData.get("site_description") as string;
+  const maintenance_mode = formData.get("maintenance_mode") === "on"; // Checkbox kontrolü
+  const announcement_text = formData.get("announcement_text") as string;
+  const announcement_active = formData.get("announcement_active") === "on";
+
+  const { error } = await supabase
+    .from("site_settings")
+    .update({
+      site_name,
+      site_description,
+      maintenance_mode,
+      announcement_text,
+      announcement_active,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", 1); // Sadece 1 numaralı satırı güncelliyoruz
+
+  if (error) {
+     return { success: false, error: error.message };
+  }
+
+  revalidatePath("/"); // Tüm siteyi yenile ki başlık değişsin
+  return { success: true };
 }

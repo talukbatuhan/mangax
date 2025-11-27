@@ -33,7 +33,7 @@ export default function Loading() {
             {/* Yatay Kartlar */}
             <div className="flex gap-4 overflow-hidden">
                 {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="shrink-0 w-[160px] md:w-[190px] h-[280px] bg-[#1a1a1a] rounded-sm animate-pulse border border-white/5 flex flex-col p-2 gap-2">
+                    <div key={i} className="shrink-0 w-40 md:w-[190px] h-[280px] bg-[#1a1a1a] rounded-sm animate-pulse border border-white/5 flex flex-col p-2 gap-2">
                         {/* Resim */}
                         <div className="flex-1 bg-white/5 w-full rounded-sm"></div>
                         {/* Yazı */}
