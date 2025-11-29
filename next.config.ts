@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
 import withPWAInit from "@ducanh2912/next-pwa";
 
-// 1. PWA Ayarları
 const withPWA = withPWAInit({
   dest: "public",
   cacheOnFrontEndNav: true,
@@ -13,7 +12,6 @@ const withPWA = withPWAInit({
   },
 });
 
-// 2. Next.js Ayarları
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -28,10 +26,11 @@ const nextConfig: NextConfig = {
     ],
   },
   
-  // --- DÜZELTME BURADA: Limiti 50MB yapıyoruz ---
+  // --- GÜNCELLEME BURADA ---
   experimental: {
     serverActions: {
-      bodySizeLimit: '50mb', 
+      // Manga bölümleri büyük olabileceği için limiti 250MB'a çıkarıyoruz
+      bodySizeLimit: '250mb', 
     },
   },
 };
