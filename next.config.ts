@@ -23,10 +23,14 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'api.dicebear.com', 
       },
+      // --- EKLENEN KISIM: Placeholder hatasını çözer ---
+      {
+        protocol: 'https',
+        hostname: 'via.placeholder.com',
+      },
     ],
   },
   
-  // --- GÜNCELLEME BURADA ---
   experimental: {
     serverActions: {
       // Manga bölümleri büyük olabileceği için limiti 250MB'a çıkarıyoruz

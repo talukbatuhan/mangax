@@ -44,6 +44,7 @@ export default async function LatestUpdateCard({ manga }: LatestUpdateCardProps)
               fill 
               className="object-cover transition-transform duration-700 group-hover:scale-110 opacity-90 group-hover:opacity-100"
               sizes="100px"
+              unoptimized
             />
           ) : (
             <div className="w-full h-full bg-gray-900 flex items-center justify-center text-[10px] text-gray-500">Yok</div>
