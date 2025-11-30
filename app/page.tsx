@@ -7,8 +7,10 @@ import { supabase } from "@/lib/supabase";
 import { Manga } from "@/app/types";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
-// Mevcut importlarınızın arasına şunu ekleyin:
 import WeeklyPopular, { MangaWithChapters } from "@/app/components/WeeklyPopular";
+// YENİ: Modern Slider bileşenini ekledik
+import ModernHeroSlider from "@/app/components/ModernHeroSlider";
+
 export const revalidate = 60;
 
 // --- TİP TANIMLARI ---
@@ -37,10 +39,10 @@ export default async function Home() {
     // C. Slider (Vitrin)
     supabase
       .from("slider_items")
-      .select(`mangas (title, slug, description, cover_url)`),
+      .select(`mangas (id, title, slug, description, cover_url, rating_avg)`),
 
     // D. Haftalık Popüler
-  supabase
+    supabase
       .from("mangas")
       .select(`
         *,
@@ -50,31 +52,30 @@ export default async function Home() {
       `)
       .order("rating_avg", { ascending: false })
       .limit(15)
-      
   ]);
 
   // --- 2. VERİ TEMİZLİĞİ ---
   const latestMangas = (latestRes.data as unknown as Manga[]) || [];
   const popularMangas = (popularRes.data as unknown as Manga[]) || [];
   const sliderItems = (sliderRes.data as unknown as SliderItem[]) || [];
-const weeklyMangas = (weeklyRes.data as unknown as MangaWithChapters[]) || [];
+  const weeklyMangas = (weeklyRes.data as unknown as MangaWithChapters[]) || [];
 
-  // --- 3. VİTRİN MANGASINI BELİRLEME ---
-  let featuredManga: Manga | null = null;
-
-  if (sliderItems.length > 0) {
-    const item = sliderItems[0].mangas;
-    if (Array.isArray(item)) {
-        featuredManga = item[0] || null;
-    } else {
-        featuredManga = item;
-    }
-  }
+  // --- 3. SLIDER VERİSİNİ HAZIRLAMA ---
+  // Slider tablosundan gelen veriyi düz bir Manga listesine çeviriyoruz
+  const sliderMangas: Manga[] = [];
   
-  if (!featuredManga && latestMangas.length > 0) {
-    featuredManga = latestMangas[0];
-  }
+  sliderItems.forEach(item => {
+      if (Array.isArray(item.mangas)) {
+          item.mangas.forEach(m => sliderMangas.push(m));
+      } else if (item.mangas) {
+          sliderMangas.push(item.mangas);
+      }
+  });
 
+  // Eğer vitrinde hiç eleman yoksa, boş kalmasın diye son eklenenlerden birini ekle
+  if (sliderMangas.length === 0 && latestMangas.length > 0) {
+      sliderMangas.push(latestMangas[0]);
+  }
 
   return (
     <main className="min-h-screen bg-[#0f0f0f] text-white font-sans selection:bg-green-500 selection:text-black relative overflow-hidden">
@@ -84,32 +85,11 @@ const weeklyMangas = (weeklyRes.data as unknown as MangaWithChapters[]) || [];
 
       <Navbar />
       
-      {/* --- HERO / SLIDER ALANI --- */}
-      {featuredManga && (
-        <div className="pt-16 relative w-full h-[350px] md:h-[500px] group overflow-hidden border-b border-white/5">
-          <div
-            className="absolute inset-0 bg-cover bg-center transition-transform duration-[10s] group-hover:scale-110 opacity-40"
-            style={{ backgroundImage: `url('${featuredManga.cover_url}')` }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0f0f0f] via-[#0f0f0f]/50 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0f0f0f] via-transparent to-transparent" />
-          
-          <div className="container mx-auto px-6 h-full flex flex-col justify-end pb-12 relative z-10">
-             <span className="px-3 py-1 bg-green-600 text-white text-[10px] font-black uppercase tracking-widest w-fit mb-4 shadow-lg">
-                Günün Tavsiyesi
-             </span>
-             <h1 className="text-3xl md:text-6xl font-black mb-4 leading-none max-w-4xl drop-shadow-2xl text-white">
-                {featuredManga.title}
-             </h1>
-             <p className="text-gray-300 text-sm md:text-lg max-w-xl line-clamp-2 mb-8 drop-shadow-md">
-                {featuredManga.description}
-             </p>
-             <Link href={`/manga/${featuredManga.slug}`} className="px-8 py-3 bg-white text-black hover:bg-green-500 hover:text-white font-bold text-sm transition w-fit shadow-[0_0_20px_rgba(255,255,255,0.2)] flex items-center gap-2 group/btn">
-                HEMEN OKU <ArrowRight size={18} className="group-hover/btn:translate-x-1 transition-transform" />
-             </Link>
-          </div>
-        </div>
-      )}
+      {/* --- YENİ HERO SLIDER ALANI --- */}
+      {/* Manuel kod yerine yeni bileşeni kullanıyoruz */}
+      <div className="pt-16">
+        <ModernHeroSlider slides={sliderMangas} />
+      </div>
 
       {/* --- KATEGORİLER --- */}
       <CategoryBar />
@@ -121,13 +101,12 @@ const weeklyMangas = (weeklyRes.data as unknown as MangaWithChapters[]) || [];
         <WeeklyPopular mangas={weeklyMangas} />
 
         {/* IZGARA YAPISI BURADA BAŞLIYOR */}
-        {/* ContinueReading'i grid'in içine aldık ki Sidebar ile hizalansın */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
            
            {/* SOL TARA: OKUMAYA DEVAM ET + SON YÜKLENENLER (9/12) */}
            <div className="lg:col-span-9 space-y-12">
                
-               {/* 1. Okumaya Devam Et Kısmı - Artık Sol Sütunun En Tepesinde */}
+               {/* 1. Okumaya Devam Et Kısmı */}
                <div>
                   <ContinueReading />
                </div>
@@ -162,7 +141,6 @@ const weeklyMangas = (weeklyRes.data as unknown as MangaWithChapters[]) || [];
            </div>
 
            {/* SAĞ TARA: SIDEBAR (3/12) */}
-           {/* Artık sol taraftaki 'Okumaya Devam Et' ile aynı dikey hizada başlayacak */}
            <div className="lg:col-span-3">
                <Sidebar popularMangas={popularMangas} />
            </div>

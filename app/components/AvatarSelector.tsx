@@ -9,8 +9,9 @@ import { useRouter } from "next/navigation"; // Yönlendirme
 
 // Dosya isimlerin neyse buraya onları yaz (Uzantısız)
 const AVATAR_SEEDS = [
-  "Felix", "Aneka", "Zoe", "Jack", "Callie", "Samantha", 
-  "Bandit", "Misty", "Shadow", "Luna", "Bear", "Gizmo"
+  "Arthur", "Ayanokoji", "Cha", "Dokja", "Grace", "Guts", 
+  "Jin", "Kagenou", "Kayden", "Killua", "Kurosaki", "Levi",
+  "Luffy", "Satoru", "Sukuna", "Sung", "Zoro"
 ];
 
 // Yerel klasörden çekiyoruz (public/avatars içinden)
