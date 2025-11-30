@@ -3,18 +3,16 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import FooterWrapper from "@/app/components/FooterWrapper";
 import { Toaster } from "sonner";
-import BottomNav from "./components/BottomNav";
-import { createClient } from "@/lib/supabase/server"; // Server Component için güvenli client
+import BottomNavWrapper from "@/app/components/BottomNavWrapper"; // <-- DİKKAT: Wrapper
+import { createClient } from "@/lib/supabase/server"; 
 import { Megaphone } from "lucide-react";
 
-// Font Ayarları
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["300", "400", "600", "700"],
   variable: "--font-poppins",
 });
 
-// Viewport Ayarları
 export const viewport: Viewport = {
   themeColor: "#0a0a0a",
   width: "device-width",
@@ -25,11 +23,9 @@ export const viewport: Viewport = {
 
 const BASE_URL = 'https://talucscans.com';
 
-// --- 1. DİNAMİK METADATA (SEO) ---
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = await createClient();
   
-  // Ayarları çek
   const { data: settings } = await supabase
     .from('site_settings')
     .select('*')
@@ -42,7 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(BASE_URL),
     title: {
       default: `${siteName} - Türkçe Manga Oku`,
-      template: `%s | ${siteName}`, // Örn: Solo Leveling | TalucScans
+      template: `%s | ${siteName}`,
     },
     description: siteDesc,
     keywords: ["manga oku", "türkçe manga", "webtoon oku", "manga indir", "online manga"],
@@ -64,7 +60,6 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-// --- 2. ROOT LAYOUT ---
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -72,21 +67,15 @@ export default async function RootLayout({
 }>) {
   const supabase = await createClient();
 
-  // Ayarları tekrar çek
   const { data: settings } = await supabase
     .from('site_settings')
     .select('*')
     .single();
 
-  // --- BAKIM MODU EKRANI TAMAMEN SİLİNDİ ---
-  // Artık sadece normal site render ediliyor.
-
   return (
     <html lang="tr">
       <body className={`${poppins.variable} font-sans bg-[#0a0a0a] text-gray-200 antialiased flex flex-col min-h-screen`}>
         
-        {/* --- DUYURU BANDI --- */}
-        {/* Eğer ayar aktifse ve metin varsa göster */}
         {settings?.announcement_active && settings?.announcement_text && (
            <div className="bg-gradient-to-r from-yellow-600 to-orange-600 text-white text-xs md:text-sm font-bold py-2 px-4 text-center shadow-lg relative z-50 flex items-center justify-center gap-2">
               <Megaphone size={16} className="animate-pulse" />
@@ -100,7 +89,10 @@ export default async function RootLayout({
         </div>
         
         <FooterWrapper />
-        <BottomNav />
+        
+        {/* ALT MENÜ İÇİN WRAPPER KULLANIYORUZ */}
+        <BottomNavWrapper />
+        
         <Toaster position="top-center" richColors />
       </body>
     </html>

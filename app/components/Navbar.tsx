@@ -5,7 +5,7 @@ import SearchBar from "./SearchBar";
 import LuckyButton from "./LuckyButton"; 
 import { createClient } from "@/lib/supabase/client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation"; 
 import { User } from "@supabase/supabase-js";
 import { Menu, X, User as UserIcon, LogOut, Heart, ShieldCheck } from "lucide-react";
 
@@ -16,8 +16,16 @@ export default function Navbar() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  
   const router = useRouter();
+  const pathname = usePathname();
   const supabase = createClient();
+
+  // --- SAYFA KONTROLÜ (GÜNCELLENDİ) ---
+  const segments = pathname?.split("/").filter(Boolean) || [];
+  
+  // Eğer okuma sayfasındaysak (3 parça: manga/isim/bölüm), Navbar'ı GİZLE.
+  const isReaderPage = segments[0] === "manga" && segments.length === 3;
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 10);
@@ -50,6 +58,9 @@ export default function Navbar() {
     setIsMenuOpen(false);
   };
 
+  // Okuma sayfasındaysak hiç render etme (null dön)
+  if (isReaderPage) return null;
+
   return (
     <nav 
       className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 border-b ${
@@ -60,7 +71,7 @@ export default function Navbar() {
     >
       <div className="container mx-auto px-6 h-16 flex items-center justify-between">
         
-        {/* --- SOL: LOGO --- */}
+        {/* SOL: LOGO */}
         <Link href="/" className="flex items-center gap-2 group z-50 shrink-0">
           <div className="w-8 h-8 bg-gradient-to-br from-green-600 to-green-400 rounded flex items-center justify-center text-black font-black text-xl shadow-[0_0_15px_rgba(34,197,94,0.4)] group-hover:rotate-6 transition-transform">
             T
@@ -70,7 +81,7 @@ export default function Navbar() {
           </span>
         </Link>
 
-        {/* --- ORTA: ARAMA + LUCKY BUTTON (Masaüstü) --- */}
+        {/* ORTA: ARAMA + LUCKY BUTTON (Masaüstü) */}
         <div className="hidden md:flex flex-1 items-center justify-end gap-4 mr-6">
            <div className="shrink-0">
               <LuckyButton />
@@ -80,7 +91,7 @@ export default function Navbar() {
            </div>
         </div>
 
-        {/* --- MOBİL MENÜ BUTONU --- */}
+        {/* MOBİL MENÜ BUTONU */}
         <button 
           onClick={() => setIsMenuOpen(!isMenuOpen)}
           className="md:hidden text-gray-300 hover:text-white p-2 transition z-50"
@@ -88,7 +99,7 @@ export default function Navbar() {
           {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
 
-        {/* --- SAĞ: KULLANICI MENÜSÜ (Masaüstü) --- */}
+        {/* SAĞ: KULLANICI MENÜSÜ */}
         <div className="hidden md:flex items-center gap-6 border-l border-white/10 pl-6">
           {user ? (
             <>
@@ -128,13 +139,10 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* --- MOBİL MENÜ --- */}
+      {/* MOBİL MENÜ */}
       <div className={`md:hidden absolute top-0 left-0 w-full bg-[#0f0f0f] border-b border-white/10 overflow-hidden transition-all duration-300 ease-in-out ${isMenuOpen ? "max-h-[600px]  opacity-100" : "max-h-0 opacity-0"}`}>
         <div className="p-6 space-y-6">
-            
-            {/* --- GÜNCELLENEN KISIM BAŞLANGIÇ --- */}
             <div className="w-full space-y-4"> 
-               {/* SearchBar ortalaması için kapsayıcı eklendi */}
                <div className="flex justify-center w-full">
                   <SearchBar />
                </div>
@@ -142,7 +150,6 @@ export default function Navbar() {
                   <LuckyButton />
                </div>
             </div>
-            {/* --- GÜNCELLENEN KISIM BİTİŞ --- */}
 
             {user ? (
               <div className="space-y-4 border-t border-white/5 pt-4">

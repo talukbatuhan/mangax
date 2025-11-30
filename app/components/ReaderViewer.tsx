@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { updateReadingProgress, incrementView } from "@/app/actions"; // <--- İŞTE EKSİK OLAN SATIR BU! ✅
-
+import { updateReadingProgress, incrementView } from "@/app/actions";
+import BottomNav from "@/app/components/BottomNav";
 
 interface ReaderViewerProps {
   images: string[];
@@ -13,7 +13,6 @@ interface ReaderViewerProps {
   mangaTitle: string;
   chapterNum: number;
   slug: string;
-  // YENİ EKLENEN PROPLAR:
   mangaId: string;
   chapterId: string;
 }
@@ -32,42 +31,36 @@ export default function ReaderViewer({
   const [showUI, setShowUI] = useState(true);
   const [progress, setProgress] = useState(0);
   const scrollTimeout = useRef<NodeJS.Timeout | null>(null);
-  const router = useRouter();
 
   useEffect(() => {
-    // --- 1. GEÇMİŞE KAYDET ---
-    // Sayfa açıldığı an "Bunu okuyor" diye veritabanına işliyoruz.
     if (mangaId && chapterId) {
         updateReadingProgress(mangaId, chapterId);
         incrementView(mangaId);
     }
 
-    // --- 2. SCROLL MANTIĞI ---
     const handleScroll = () => {
       const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
       const currentScroll = window.scrollY;
       const percentage = (currentScroll / totalHeight) * 100;
       setProgress(percentage);
 
-      setShowUI(false); // Kaydırırken gizle
+      // Kaydırırken GİZLE
+      setShowUI(false); 
 
-      if (scrollTimeout.current) {
-        clearTimeout(scrollTimeout.current);
-      }
+      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
 
-      // Durunca 1.5 sn sonra göster
+      // Durunca GÖSTER (0.6s gecikme)
       scrollTimeout.current = setTimeout(() => {
         setShowUI(true);
-      }, 1500);
+      }, 600);
     };
 
     window.addEventListener("scroll", handleScroll);
-    
     return () => {
       window.removeEventListener("scroll", handleScroll);
       if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
     };
-  }, [mangaId, chapterId]); // Bölüm değişirse tekrar çalışsın
+  }, [mangaId, chapterId]);
 
   const toggleUI = () => {
     setShowUI((prev) => !prev);
@@ -76,16 +69,16 @@ export default function ReaderViewer({
   return (
     <div className="min-h-screen bg-black text-white relative">
       
-      {/* Yeşil İlerleme Çubuğu */}
-      <div className="fixed top-0 left-0 w-full h-1 z-[60] bg-gray-800">
+      {/* İlerleme Çubuğu */}
+      <div className="fixed top-0 left-0 w-full h-1 z-[70] bg-gray-800">
         <div 
           className="h-full bg-green-500 transition-all duration-100 ease-out shadow-[0_0_10px_#22c55e]"
           style={{ width: `${progress}%` }}
         />
       </div>
 
-      {/* Üst Menü */}
-      <div className={`fixed top-0 left-0 w-full z-50 transition-transform duration-500 ease-in-out ${showUI ? "translate-y-0" : "-translate-y-full"}`}>
+      {/* --- HEADER (YUKARI KAYAR) --- */}
+      <div className={`fixed top-0 left-0 w-full z-50 transition-transform duration-300 ease-in-out ${showUI ? "translate-y-0" : "-translate-y-full"}`}>
         <div className="bg-gradient-to-b from-black/90 to-transparent p-4 pb-12 flex justify-between items-start">
             <div className="flex flex-col">
                 <Link href={`/manga/${slug}`} className="text-white font-bold hover:text-green-400 flex items-center gap-2 drop-shadow-md transition">
@@ -112,8 +105,8 @@ export default function ReaderViewer({
         </div>
       </div>
 
-      {/* Resim Alanı */}
-      <div onClick={toggleUI} className="w-full max-w-4xl mx-auto cursor-pointer min-h-screen">
+      {/* --- RESİM ALANI --- */}
+      <div onClick={toggleUI} className="w-full max-w-4xl mx-auto cursor-pointer min-h-screen pb-20">
         {images.map((imgUrl, index) => (
           <img 
             key={index}
@@ -144,6 +137,16 @@ export default function ReaderViewer({
                 </div>
             )}
         </div>
+      </div>
+
+      {/* --- ALT MENÜ (AŞAĞI KAYAR) --- */}
+      <div 
+        className={`fixed bottom-0 left-0 w-full z-[60] md:hidden transition-transform duration-300 ease-in-out ${
+          showUI ? "translate-y-0" : "translate-y-full"
+        }`}
+      >
+         {/* showUI state'ini BottomNav'a gönderiyoruz */}
+         <BottomNav showUI={showUI} className="w-full bg-black/95 backdrop-blur-lg border-t border-white/10" />
       </div>
 
     </div>
