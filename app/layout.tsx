@@ -38,7 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(BASE_URL),
     title: {
       default: `${siteName} - Türkçe Manga Oku`,
-      template: `%s | ${siteName}`,
+      template: `%s | TalucScans`,
     },
     description: siteDesc,
     keywords: ["manga oku", "türkçe manga", "webtoon oku", "manga indir", "online manga"],

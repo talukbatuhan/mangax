@@ -52,7 +52,7 @@ export default function ReaderViewer({
       // Durunca GÖSTER (0.6s gecikme)
       scrollTimeout.current = setTimeout(() => {
         setShowUI(true);
-      }, 600);
+      }, 1000);
     };
 
     window.addEventListener("scroll", handleScroll);
