@@ -29,7 +29,7 @@ export default function ModernHeroSlider({ slides }: PropType) {
   if (!slides || slides.length === 0) return null;
 
   return (
-    <div className="relative group w-full h-[400px] md:h-[550px] bg-[#0f0f0f] border-b border-white/5 overflow-hidden">
+    <div className="relative group w-full h-[400px] md:h-[420px] bg-[#0f0f0f] border-b border-white/5 overflow-hidden">
       
       {/* Slider Viewport */}
       <div className="overflow-hidden h-full w-full" ref={emblaRef}>

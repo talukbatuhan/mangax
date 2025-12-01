@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next'
  
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'TalucScans - Manga Oku',
+    name: 'TaluciScans - Manga Oku',
     short_name: 'TalucScans',
     description: 'En sevdiğin mangaları ücretsiz ve Türkçe oku.',
     start_url: '/',
