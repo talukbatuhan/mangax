@@ -60,7 +60,7 @@ export default function ModernHeroSlider({ slides }: PropType) {
                 <div className="flex flex-col md:flex-row gap-8 items-end w-full">
                   
                   {/* Sol: Kapak Resmi (Poster) */}
-                  <div className="hidden md:block shrink-0 relative w-[160px] h-[240px] rounded-lg overflow-hidden shadow-[0_0_30px_rgba(0,0,0,0.5)] border-2 border-white/10 group-hover:border-green-500 transition-colors duration-500">
+                  <div className="hidden md:block shrink-0 relative w-[200px] h-[280px] rounded-lg overflow-hidden shadow-[0_0_30px_rgba(0,0,0,0.5)] border-2 border-white/10 group-hover:border-green-500 transition-colors duration-500">
                      {manga.cover_url && (
                         <Image src={manga.cover_url} fill className="object-cover" alt={manga.title} />
                      )}
