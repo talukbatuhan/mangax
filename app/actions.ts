@@ -163,3 +163,39 @@ export async function getRandomMangaSlug() {
   const randomIndex = Math.floor(Math.random() * data.length);
   return `/manga/${data[randomIndex].slug}`;
 }
+
+export async function deleteFromHistory(mangaId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Giriş yapmalısın");
+
+  const { error } = await supabase
+    .from("reading_history")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("manga_id", mangaId);
+
+  if (error) throw new Error("Silinemedi");
+
+  revalidatePath("/history");
+  revalidatePath("/"); // Anasayfadaki "Okumaya Devam Et" kısmı da güncellensin
+}
+
+// TÜM GEÇMİŞİ TEMİZLE
+export async function clearHistory() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error("Giriş yapmalısın");
+
+  const { error } = await supabase
+    .from("reading_history")
+    .delete()
+    .eq("user_id", user.id);
+
+  if (error) throw new Error("Geçmiş temizlenemedi");
+
+  revalidatePath("/history");
+  revalidatePath("/");
+}

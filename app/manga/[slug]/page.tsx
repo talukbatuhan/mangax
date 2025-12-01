@@ -1,14 +1,14 @@
 import Navbar from "@/app/components/Navbar";
-import MangaCard from "@/app/components/MangaCard";
-import CommentSection from "@/app/components/CommentSection";
 import FavoriteButton from "@/app/components/FavoriteButton";
 import RatingStars from "@/app/components/RatingStars";
+import MangaChapterList from "@/app/components/MangaChapterList"; 
+import CommentSection from "@/app/components/CommentSection"; // Unutulan import eklendi
 import { createClient } from "@/lib/supabase/server";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Manga } from "@/app/types";
-import { Calendar, Eye, Layers, User, Hash, BookOpen, Sparkles } from "lucide-react";
+import { Manga, Chapter } from "@/app/types"; 
+import { Calendar, Eye, Layers, User, Hash, Sparkles, Play, RotateCw } from "lucide-react"; 
 import { Metadata } from "next";
 
 interface PageProps {
@@ -34,7 +34,6 @@ type MangaWithRelations = {
   }[];
 };
 
-// --- GÜNCELLENMİŞ METADATA ---
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const supabase = await createClient();
@@ -45,8 +44,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     .eq("slug", slug)
     .single();
   
-  // Düzeltme: Sadece "Manga Adı Oku" yazıyoruz. 
-  // Layout dosyası otomatik olarak "| TalucScans" ekleyecektir.
   return {
     title: manga ? `${manga.title} Oku` : "Manga Bulunamadı",
     description: manga?.description || "Türkçe manga okuma platformu.",
@@ -86,7 +83,10 @@ export default async function MangaDetail({ params }: PageProps) {
   };
 
   let userRating = 0;
+  let lastReadChapterNum: number | null = null;
+
   if (user) {
+    // 1. Puan verisi
     const { data: ratingData } = await supabase
       .from("ratings")
       .select("score")
@@ -95,13 +95,55 @@ export default async function MangaDetail({ params }: PageProps) {
       .single();
     
     if (ratingData) userRating = ratingData.score / 2; 
+
+    // 2. OKUMA GEÇMİŞİ VERİSİ (DÜZELTİLDİ)
+    const { data: historyData } = await supabase
+      .from("reading_history")
+      .select(`
+        chapter_id,
+        chapters (
+            chapter_number
+        )
+      `)
+      .eq("user_id", user.id)
+      .eq("manga_id", manga.id)
+      .single();
+
+    if (historyData && historyData.chapters) {
+        const chapterData = Array.isArray(historyData.chapters) 
+            ? historyData.chapters[0] 
+            : historyData.chapters;
+            
+        if (chapterData) {
+            lastReadChapterNum = chapterData.chapter_number;
+        }
+    }
   }
 
-  const { data: chapters } = await supabase
+  // Bölümleri Çek
+  const { data: chaptersData } = await supabase
     .from("chapters")
     .select("*")
     .eq("manga_id", manga.id)
     .order("chapter_number", { ascending: false });
+
+  const chapters = (chaptersData as unknown as Chapter[]) || [];
+
+  // --- BUTON MANTIĞI ---
+  // İlk bölüm (Dizi tersten sıralı olduğu için son eleman ilk bölümdür)
+  const firstChapterNum = chapters.length > 0 ? chapters[chapters.length - 1].chapter_number : null;
+  
+  // Link Hedefi: Varsa kaldığı yer, yoksa ilk bölüm
+  const actionLink = lastReadChapterNum 
+    ? `/manga/${slug}/${lastReadChapterNum}` 
+    : (firstChapterNum ? `/manga/${slug}/${firstChapterNum}` : null);
+
+  const actionText = lastReadChapterNum 
+    ? `Bölüm ${lastReadChapterNum} - Devam Et` 
+    : "Okumaya Başla";
+    
+  const ActionIcon = lastReadChapterNum ? RotateCw : Play;
+
 
   let similarMangas: Manga[] = [];
   if (manga.genres && manga.genres.length > 0) {
@@ -167,6 +209,18 @@ export default async function MangaDetail({ params }: PageProps) {
                     </h1>
 
                     <div className="flex flex-wrap justify-center md:justify-start gap-4 items-center">
+                        
+                        {/* --- DEVAM ET / BAŞLA BUTONU --- */}
+                        {actionLink && (
+                            <Link 
+                                href={actionLink}
+                                className="flex items-center gap-2 bg-white text-black hover:bg-green-400 px-6 py-3 rounded-full font-bold transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:shadow-green-500/40 group"
+                            >
+                                <ActionIcon size={20} className="fill-current group-hover:rotate-12 transition-transform" />
+                                <span className="uppercase tracking-wide text-xs md:text-sm">{actionText}</span>
+                            </Link>
+                        )}
+
                         <RatingStars 
                             mangaId={String(manga.id)}
                             initialRating={userRating} 
@@ -215,43 +269,7 @@ export default async function MangaDetail({ params }: PageProps) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
             
             <div className="lg:col-span-8 space-y-10">
-                <div className="bg-[#1a1a1a] border border-white/5 rounded-xl p-6 shadow-xl">
-                    <div className="flex items-center justify-between mb-6 border-b border-white/5 pb-4">
-                        <h3 className="text-xl font-black uppercase tracking-wide flex items-center gap-2">
-                             <BookOpen className="text-green-500" /> Bölümler
-                        </h3>
-                        <div className="text-xs text-gray-500 font-mono">
-                            Toplam {chapters?.length} Bölüm
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                        {chapters?.map((chapter) => (
-                            <Link 
-                                href={`/manga/${slug}/${chapter.chapter_number}`} 
-                                key={chapter.id}
-                                className="group flex items-center justify-between bg-[#0f0f0f] border border-white/5 p-4 rounded-lg hover:border-green-500/50 hover:bg-[#151515] transition-all duration-300"
-                            >
-                                <div className="flex flex-col">
-                                    <span className="text-gray-400 text-xs uppercase tracking-widest group-hover:text-green-500 transition-colors">
-                                         Bölüm {chapter.chapter_number}
-                                    </span>
-                                    <span className="text-white font-bold text-sm mt-0.5 truncate max-w-[200px]">
-                                         {chapter.title || "İsimsiz Bölüm"}
-                                    </span>
-                                </div>
-                                <span className="text-[10px] text-gray-600 font-medium bg-white/5 px-2 py-1 rounded group-hover:bg-green-600 group-hover:text-white transition-colors">
-                                    OKU
-                                </span>
-                            </Link>
-                        ))}
-                        {(!chapters || chapters.length === 0) && (
-                            <div className="col-span-full py-10 text-center text-gray-500 border border-dashed border-white/10 rounded-lg">
-                                Henüz bölüm yüklenmedi.
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <MangaChapterList chapters={chapters} slug={slug} />
 
                 <div className="bg-[#1a1a1a] border border-white/5 rounded-xl p-6 shadow-xl">
                     <h3 className="text-xl font-black uppercase tracking-wide flex items-center gap-2 mb-6">

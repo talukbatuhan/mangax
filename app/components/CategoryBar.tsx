@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
 const CATEGORIES = [
     "Aksiyon", "Aşırı Güçlü", "Bilim Kurgu", "Büyü", "Canavar", 
@@ -8,38 +12,62 @@ const CATEGORIES = [
     "Romantik", "Savaş", "Spor", "Tarihi", "Wuxia"
 ];
 
-export default function CategoryBar() {
+function CategoryBarContent() {
+  const searchParams = useSearchParams();
+  const currentGenre = searchParams.get("genre");
+
   return (
-    // DEĞİŞİKLİK: Düz siyah yerine yarı saydam, bulanık ve altı parlayan bir bar.
     <div className="w-full bg-black/60 backdrop-blur-md border-b border-green-500/20 sticky top-16 z-40 shadow-[0_4px_20px_-5px_rgba(34,197,94,0.2)]">
       
       <div className="container mx-auto">
-        <div className="flex items-center overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] py-2">
+        <div className="flex items-center overflow-x-auto whitespace-nowrap [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none'] py-2 px-2 md:px-0">
           
-          {CATEGORIES.map((cat) => (
-            <Link 
-              key={cat}
-              href={`/search?genre=${cat}`}
-              className="
-                relative group
-                px-5 py-3
-                // DEĞİŞİKLİK: Varsayılan renk gri yerine hafif yeşile çalan beyaz.
-                text-sm font-bold text-green-100/70 
-                hover:text-white
-                transition-all duration-300
-                flex items-center justify-center
-              "
-            >
-              {/* Hover'da hafif yukarı kalkma efekti */}
-              <span className="group-hover:-translate-y-0.5 transition-transform duration-300">{cat}</span>
-              
-              {/* DEĞİŞİKLİK: Alt çizgi daha parlak ve canlı yeşil */}
-              <span className="absolute bottom-0 left-0 w-full h-[3px] bg-gradient-to-r from-green-400 to-green-600 rounded-full scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left shadow-[0_0_10px_rgba(34,197,94,0.7)]"></span>
-            </Link>
-          ))}
+          {CATEGORIES.map((cat) => {
+            const isSelected = currentGenre === cat;
+
+            return (
+              <Link 
+                key={cat}
+                // Seçiliyse filtreyi kaldırmak için anasayfaya (veya search'e) dönebilir
+                href={isSelected ? "/search" : `/search?genre=${cat}`}
+                className={`
+                  relative group
+                  px-5 py-3
+                  text-sm font-bold 
+                  transition-all duration-300
+                  flex items-center justify-center
+                  ${isSelected 
+                    ? "text-green-400 drop-shadow-[0_0_5px_rgba(74,222,128,0.6)]" // Seçili: Parlak Yeşil + Glow
+                    : "text-green-100/70 hover:text-white" // Normal
+                  }
+                `}
+              >
+                {/* Metin Efekti */}
+                <span className={`transition-transform duration-300 ${isSelected ? "-translate-y-0.5" : "group-hover:-translate-y-0.5"}`}>
+                    {cat}
+                </span>
+                
+                {/* Alt Çizgi (Seçiliyse sabit, değilse hover ile gelir) */}
+                <span className={`
+                    absolute bottom-0 left-0 w-full h-[3px] bg-gradient-to-r from-green-400 to-green-600 rounded-full 
+                    transition-transform duration-300 origin-left shadow-[0_0_10px_rgba(34,197,94,0.7)]
+                    ${isSelected ? "scale-x-100" : "scale-x-0 group-hover:scale-x-100"}
+                `}></span>
+              </Link>
+            );
+          })}
           
         </div>
       </div>
     </div>
+  );
+}
+
+// Suspense, useSearchParams kullanan Client Component'ler için gereklidir (Build hatasını önler)
+export default function CategoryBar() {
+  return (
+    <Suspense fallback={<div className="w-full h-14 bg-black/60 sticky top-16 z-40 border-b border-green-500/20" />}>
+      <CategoryBarContent />
+    </Suspense>
   );
 }

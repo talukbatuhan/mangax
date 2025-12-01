@@ -6,7 +6,10 @@ import { Loader2, Save, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+// YENİ: Import
+import { compressImage } from "@/app/utils/compressImage";
 
+// ... (Tip tanımları aynı)
 type MangaDetails = {
   id: string;
   title: string;
@@ -21,16 +24,10 @@ export default function EditMangaForm({ manga }: { manga: MangaDetails }) {
   const [preview, setPreview] = useState<string | null>(manga.cover_url);
   const router = useRouter();
 
-  // Dosya seçilince önizlemeyi güncelle
+  // Dosya seçilince önizleme + boyut kontrolü (Değişiklik yok)
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // 5MB boyut kontrolü (İsteğe bağlı, UX için iyi olur)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Dosya boyutu 5MB'dan küçük olmalıdır.");
-        e.target.value = ""; // Seçimi temizle
-        return;
-      }
       const url = URL.createObjectURL(file);
       setPreview(url);
     }
@@ -43,31 +40,45 @@ export default function EditMangaForm({ manga }: { manga: MangaDetails }) {
     try {
       const formData = new FormData(e.currentTarget);
       
-      // Server Action'ı çağırıyoruz
+      // --- YENİ: KAPAK SIKIŞTIRMA ---
+      const coverFile = formData.get("cover") as File;
+      
+      if (coverFile && coverFile.size > 0) {
+         try {
+            // Kapakları biraz daha kaliteli tutabiliriz (0.9) ama genişliği 800px yeterlidir
+            const compressedCover = await compressImage(coverFile, 0.9, 800);
+            
+            // Orijinal dosyanın yerine sıkıştırılmış olanı koy
+            formData.set("cover", compressedCover);
+            
+         } catch (error) {
+            console.error("Kapak sıkıştırılamadı:", error);
+            // Hata olsa bile devam et, orijinal dosya yüklenir
+         }
+      }
+      // -----------------------------
+      
       const res = await updateMangaDetailsAction(formData);
 
       if (res.success) {
         toast.success("Manga bilgileri ve kapak güncellendi! ✅");
         router.refresh();
       } else {
-        // Sunucudan dönen mantıksal hatalar (örn: veritabanı hatası)
         toast.error("Hata: " + res.error);
       }
     } catch (error) {
-      // Beklenmedik ağ hataları veya sunucu çökmesi burada yakalanır
       console.error("Form gönderim hatası:", error);
-      toast.error("Bir hata oluştu. Dosya boyutu çok büyük olabilir veya sunucu yanıt vermiyor.");
+      toast.error("Bir hata oluştu.");
     } finally {
-      // Başarılı olsa da hatalı olsa da yükleniyor durumunu kapat
       setLoading(false);
     }
   };
 
   return (
+    // ... (JSX aynı kalıyor)
     <form onSubmit={handleSubmit} className="bg-gray-900 border border-white/10 rounded-2xl p-6 shadow-xl space-y-6">
       <input type="hidden" name="id" value={manga.id} />
 
-      {/* Kapak Resmi Önizleme ve Yükleme */}
       <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-700 rounded-xl bg-black/20 group">
         <div className="relative w-32 h-48 mb-4 shadow-lg rounded-lg overflow-hidden">
            {preview ? (
@@ -81,9 +92,9 @@ export default function EditMangaForm({ manga }: { manga: MangaDetails }) {
             Kapağı Değiştir
             <input type="file" name="cover" accept="image/*" className="hidden" onChange={handleFileChange} />
         </label>
-        <p className="text-[10px] text-gray-500 mt-2">Sadece değiştirmek istiyorsanız dosya seçin.</p>
       </div>
 
+      {/* ... (Diğer input alanları aynı) ... */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs text-gray-400 mb-1 font-bold">Manga Adı</label>

@@ -6,6 +6,7 @@ import { saveChapterImagesAction } from "@/app/admin/actions";
 import { UploadCloud, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { compressImage } from "@/app/utils/compressImage"; // Sıkıştırma fonksiyonunu import ediyoruz
 
 export default function ChapterUploader({ mangaId, mangaTitle }: { mangaId: string, mangaTitle: string }) {
   const [loading, setLoading] = useState(false);
@@ -40,12 +41,22 @@ export default function ChapterUploader({ mangaId, mangaTitle }: { mangaId: stri
     // --- A. İSTEMCİ TARAFI YÜKLEME (Client-Side Upload) ---
     // Her dosyayı tek tek bucket'a atıyoruz.
     for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      // Kullanıcıya ilerleme durumu göster
+      let file = files[i];
+      
+      // 1. ADIM: Resim Sıkıştırma
+      try {
+        setProgress(`Sıkıştırılıyor: ${i + 1} / ${files.length}`);
+        // 1600px genişlik ve 0.8 kalite idealdir. WebP'ye çevirir.
+        file = await compressImage(file, 0.8, 1600);
+      } catch (err) {
+        console.warn(`"${file.name}" sıkıştırılamadı, orijinali yüklenecek.`, err);
+      }
+
+      // 2. ADIM: Yükleme
       setProgress(`Yükleniyor: ${i + 1} / ${files.length}`);
 
-      // Dosya ismini temizle ve benzersiz yap
-      const cleanName = file.name.replace(/[^a-zA-Z0-9.]/g, "_");
+      // Dosya ismini temizle ve benzersiz yap (Uzantıyı .webp yapıyoruz çünkü compressImage çevirdi)
+      const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9]/g, "_") + ".webp";
       const path = `${mangaId}/${chapterNum}/${Date.now()}-${i}-${cleanName}`;
 
       const { error } = await supabase.storage
@@ -96,39 +107,59 @@ export default function ChapterUploader({ mangaId, mangaTitle }: { mangaId: stri
   };
 
   return (
-    <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 sticky top-6">
+    <div className="bg-gray-900 border border-white/10 rounded-2xl p-6 sticky top-6 shadow-xl">
       <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-        <UploadCloud className="text-green-500" /> Bölüm Yükle (Hızlı)
+        <UploadCloud className="text-green-500" /> Bölüm Yükle (Hızlı & Optimize)
       </h3>
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-            <label className="text-xs text-gray-400 block mb-1">Bölüm Numarası</label>
-            <input type="number" name="chapterNum" placeholder="Örn: 10" className="w-full bg-black border border-gray-700 rounded p-3 text-white focus:border-green-500 outline-none" required />
+            <label className="text-xs text-gray-400 block mb-1 font-bold">Bölüm Numarası</label>
+            <input 
+              type="number" 
+              name="chapterNum" 
+              placeholder="Örn: 10" 
+              className="w-full bg-black border border-gray-700 rounded-xl p-3 text-white focus:border-green-500 outline-none transition" 
+              required 
+            />
         </div>
         <div>
-            <label className="text-xs text-gray-400 block mb-1">Bölüm Başlığı (Opsiyonel)</label>
-            <input type="text" name="title" placeholder="Örn: Savaş Başlıyor" className="w-full bg-black border border-gray-700 rounded p-3 text-white focus:border-green-500 outline-none" />
+            <label className="text-xs text-gray-400 block mb-1 font-bold">Bölüm Başlığı (Opsiyonel)</label>
+            <input 
+              type="text" 
+              name="title" 
+              placeholder="Örn: Savaş Başlıyor" 
+              className="w-full bg-black border border-gray-700 rounded-xl p-3 text-white focus:border-green-500 outline-none transition" 
+            />
         </div>
         
-        <div className="border-2 border-dashed border-gray-700 rounded-xl p-6 text-center hover:border-green-500/50 transition bg-black/20 cursor-pointer relative">
+        <div className="border-2 border-dashed border-gray-700 rounded-xl p-8 text-center hover:border-green-500/50 transition bg-black/20 cursor-pointer relative group">
             {/* 'multiple' özelliği sayesinde çoklu seçim yapılabilir */}
-            <input type="file" name="pages" multiple accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" required />
-            <div className="pointer-events-none">
-                <span className="text-2xl block mb-2">📂</span>
-                <span className="text-xs text-gray-400 font-bold">Resimleri Seç (WebP, JPG)</span>
-                <span className="text-[10px] text-gray-600 block mt-1">Sınır yok, doğrudan yükleme.</span>
+            <input 
+              type="file" 
+              name="pages" 
+              multiple 
+              accept="image/*" 
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
+              required 
+            />
+            <div className="pointer-events-none group-hover:scale-105 transition-transform">
+                <span className="text-3xl block mb-2">📂</span>
+                <span className="text-sm text-gray-300 font-bold block">Resimleri Sürükle veya Seç</span>
+                <span className="text-[10px] text-green-400/70 block mt-2 font-mono">
+                  Otomatik WebP dönüşümü ve sıkıştırma uygulanır.
+                </span>
             </div>
         </div>
 
         <button 
             disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition disabled:opacity-50"
+            className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition disabled:opacity-50 shadow-lg shadow-green-900/20"
         >
             {loading ? (
               <>
                 <Loader2 className="animate-spin" size={18} />
-                <span className="text-xs">{progress}</span>
+                <span className="text-xs font-mono">{progress}</span>
               </>
             ) : (
               "Yüklemeyi Başlat"

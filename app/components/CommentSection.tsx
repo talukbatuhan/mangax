@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Send, Reply } from "lucide-react";
+import { Send, Reply, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
 import { User } from "@supabase/supabase-js";
 
-// --- TİP TANIMLARI ---
 interface Profile {
   username: string | null;
   avatar_url: string | null;
@@ -18,28 +17,28 @@ interface Comment {
   created_at: string;
   parent_id: number | null;
   user_id: string;
-  manga_id: string; // Veya number, veritabanına göre değişir
-  user: Profile | null; // İlişkisel veri (profiles tablosundan)
+  manga_id: string; 
+  is_spoiler: boolean; // YENİ ALAN (DB'de olmalı)
+  user: Profile | null;
 }
 
 interface CommentSectionProps {
-  mangaId: string; // ID string ise string, number ise number yapın (Genelde string UUID olur)
+  mangaId: string;
 }
 
 export default function CommentSection({ mangaId }: CommentSectionProps) {
   const supabase = createClient();
 
-  // --- STATE ---
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [isSpoiler, setIsSpoiler] = useState(false); // YENİ: Spoiler state
   const [loading, setLoading] = useState(false);
   const [user, setUser] = useState<User | null>(null);
 
-  // Cevaplama State'leri
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
   const [replyContent, setReplyContent] = useState("");
+  const [replyIsSpoiler, setReplyIsSpoiler] = useState(false); // YENİ: Yanıt için spoiler
 
-  // --- 1. KULLANICIYI GETİR ---
   useEffect(() => {
     const getSessionUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -48,8 +47,6 @@ export default function CommentSection({ mangaId }: CommentSectionProps) {
     getSessionUser();
   }, [supabase]);
 
-  // --- 2. YORUMLARI GETİR (DÖNGÜYÜ ÇÖZEN YÖNTEM) ---
-  // Fonksiyonu useEffect içine taşıdık. Böylece useCallback'e gerek kalmadı.
   useEffect(() => {
     const fetchComments = async () => {
       const { data, error } = await supabase
@@ -64,19 +61,16 @@ export default function CommentSection({ mangaId }: CommentSectionProps) {
       if (error) {
         console.error("Yorum hatası:", error);
       } else {
-        // Tip dönüşümü (Supabase'den gelen veriyi Comment tipine uyduruyoruz)
         setComments((data as unknown as Comment[]) || []);
       }
     };
 
     fetchComments();
-    
-    // Realtime aboneliği buraya eklenebilir (Opsiyonel)
-  }, [mangaId, supabase]); // Sadece mangaId değişirse çalışır.
+  }, [mangaId, supabase]);
 
-  // --- YORUM GÖNDERME ---
   const handlePostComment = async (parentId: number | null = null) => {
     const content = parentId ? replyContent : newComment;
+    const spoilerStatus = parentId ? replyIsSpoiler : isSpoiler;
 
     if (!user) return alert("Yorum yapmak için giriş yapmalısınız.");
     if (!content.trim()) return;
@@ -88,27 +82,24 @@ export default function CommentSection({ mangaId }: CommentSectionProps) {
       manga_id: mangaId,
       user_id: user.id,
       parent_id: parentId,
+      is_spoiler: spoilerStatus // Veritabanına gönder
     });
 
     if (error) {
       console.error(error);
       alert("Yorum gönderilemedi.");
     } else {
-      // Başarılı!
       setNewComment("");
+      setIsSpoiler(false);
       setReplyContent("");
+      setReplyIsSpoiler(false);
       setReplyingTo(null);
-      
-      // Listeyi güncellemek için basitçe sayfayı yeniliyoruz veya
-      // fetchComments() mantığını tekrar çalıştırabiliriz ama en kolayı:
       window.location.reload(); 
     }
     setLoading(false);
   };
 
-  // --- Render Filtreleri ---
   const rootComments = comments.filter((c) => c.parent_id === null);
-
   const getReplies = (parentId: number) => {
     return comments.filter((c) => c.parent_id === parentId);
   };
@@ -132,7 +123,19 @@ export default function CommentSection({ mangaId }: CommentSectionProps) {
             className="w-full bg-transparent text-white placeholder-gray-500 text-sm focus:outline-none resize-none h-20"
             disabled={!user}
           />
-          <div className="flex justify-end mt-2">
+          <div className="flex justify-between items-center mt-2">
+            
+            {/* SPOILER CHECKBOX */}
+            <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-400 hover:text-white transition select-none">
+                <input 
+                    type="checkbox" 
+                    checked={isSpoiler}
+                    onChange={(e) => setIsSpoiler(e.target.checked)}
+                    className="w-4 h-4 rounded bg-gray-800 border-gray-600 text-green-500 focus:ring-0 focus:ring-offset-0"
+                />
+                <span className={isSpoiler ? "text-red-400 font-bold" : ""}>Spoiler İçeriyor</span>
+            </label>
+
             <button
               onClick={() => handlePostComment(null)}
               disabled={loading || !user || !newComment.trim()}
@@ -152,7 +155,6 @@ export default function CommentSection({ mangaId }: CommentSectionProps) {
       <div className="space-y-6">
         {rootComments.map((comment) => (
           <div key={comment.id} className="group">
-            {/* Ana Yorum */}
             <CommentItem
               comment={comment}
               onReplyClick={() =>
@@ -172,27 +174,40 @@ export default function CommentSection({ mangaId }: CommentSectionProps) {
                       className="w-full bg-[#151515] border border-green-500/30 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-green-500 transition h-20 resize-none"
                       autoFocus
                     />
-                    <div className="flex justify-end gap-2 mt-2">
-                      <button
-                        onClick={() => setReplyingTo(null)}
-                        className="text-gray-400 hover:text-white text-xs font-bold px-3 py-1"
-                      >
-                        İptal
-                      </button>
-                      <button
-                        onClick={() => handlePostComment(comment.id)}
-                        disabled={loading || !replyContent.trim()}
-                        className="bg-green-600 text-black px-4 py-1.5 rounded text-xs font-bold hover:bg-green-500"
-                      >
-                        Yanıtla
-                      </button>
+                    <div className="flex justify-between items-center mt-2">
+                        {/* Yanıt İçin Spoiler Checkbox */}
+                        <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-400 hover:text-white transition select-none">
+                            <input 
+                                type="checkbox" 
+                                checked={replyIsSpoiler}
+                                onChange={(e) => setReplyIsSpoiler(e.target.checked)}
+                                className="w-3 h-3 rounded bg-gray-800 border-gray-600 text-green-500"
+                            />
+                            <span className={replyIsSpoiler ? "text-red-400 font-bold" : ""}>Spoiler</span>
+                        </label>
+
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setReplyingTo(null)}
+                                className="text-gray-400 hover:text-white text-xs font-bold px-3 py-1"
+                            >
+                                İptal
+                            </button>
+                            <button
+                                onClick={() => handlePostComment(comment.id)}
+                                disabled={loading || !replyContent.trim()}
+                                className="bg-green-600 text-black px-4 py-1.5 rounded text-xs font-bold hover:bg-green-500"
+                            >
+                                Yanıtla
+                            </button>
+                        </div>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Alt Yorumlar (Replies) */}
+            {/* Alt Yorumlar */}
             {getReplies(comment.id).length > 0 && (
               <div className="ml-6 md:ml-12 mt-4 space-y-4 border-l-2 border-white/5 pl-4 md:pl-6">
                 {getReplies(comment.id).map((reply) => (
@@ -234,6 +249,8 @@ function CommentItem({
   isReply?: boolean;
   onReplyClick: () => void;
 }) {
+  const [showSpoiler, setShowSpoiler] = useState(!comment.is_spoiler); // Spoiler ise gizli başla
+
   return (
     <div className={`flex gap-4 ${isReply ? "opacity-90" : ""}`}>
       {/* Avatar */}
@@ -260,27 +277,55 @@ function CommentItem({
       {/* İçerik */}
       <div className="flex-1 space-y-1">
         <div className="flex items-center gap-2">
-          <span
-            className={`font-bold text-white ${
-              isReply ? "text-xs" : "text-sm"
-            }`}
-          >
+          <span className={`font-bold text-white ${isReply ? "text-xs" : "text-sm"}`}>
             {comment.user?.username || "Anonim"}
           </span>
           <span className="text-[10px] text-gray-500">
             {new Date(comment.created_at).toLocaleDateString("tr-TR")}
           </span>
+          {comment.is_spoiler && (
+             <span className="text-[9px] bg-red-900/30 text-red-400 px-1.5 py-0.5 rounded border border-red-500/20 font-bold flex items-center gap-1">
+                <AlertTriangle size={10} /> Spoiler
+             </span>
+          )}
         </div>
-        <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
-          {comment.content}
-        </p>
-        <div className="pt-1">
+
+        {/* SPOILER MANTIĞI */}
+        <div className="relative">
+            <p className={`text-gray-300 text-sm leading-relaxed whitespace-pre-wrap transition-all duration-300 ${!showSpoiler ? 'blur-sm select-none opacity-50' : ''}`}>
+                {comment.content}
+            </p>
+            
+            {/* Göster / Gizle Butonu */}
+            {!showSpoiler && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <button 
+                        onClick={() => setShowSpoiler(true)}
+                        className="bg-black/80 hover:bg-black text-white px-3 py-1.5 rounded-full text-xs font-bold border border-white/20 flex items-center gap-2 shadow-lg transition"
+                    >
+                        <Eye size={14} /> Spoilerı Göster
+                    </button>
+                </div>
+            )}
+        </div>
+
+        <div className="pt-1 flex items-center gap-4">
           <button
             onClick={onReplyClick}
             className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 hover:text-green-400 transition uppercase tracking-wider"
           >
             <Reply size={12} /> Yanıtla
           </button>
+          
+          {/* Kullanıcı açtıysa geri kapatabilmesi için */}
+          {comment.is_spoiler && showSpoiler && (
+             <button
+                onClick={() => setShowSpoiler(false)}
+                className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 hover:text-red-400 transition"
+             >
+                <EyeOff size={12} /> Gizle
+             </button>
+          )}
         </div>
       </div>
     </div>
@@ -289,18 +334,6 @@ function CommentItem({
 
 function UserIcon() {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="w-5 h-5 opacity-50"
-    >
-      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
-    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 opacity-50"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
   );
 }
