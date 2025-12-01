@@ -20,7 +20,7 @@ export default function Footer() {
           <div className="col-span-2 md:col-span-1 text-center md:text-left flex flex-col items-center md:items-start">
             <Link href="/" className="flex items-center gap-2 mb-4 group w-fit">
                 <div className="w-8 h-8 bg-green-600 rounded flex items-center justify-center text-black font-black text-xl">T</div>
-                <span className="text-xl font-bold text-white">Taluc<span className="text-green-500">Scans</span></span>
+                <span className="text-xl font-bold text-white">Taluci<span className="text-green-500">Scans</span></span>
             </Link>
             <p className="text-gray-500 text-sm leading-relaxed mb-6 max-w-sm">
               Yüksek kalitede, hızlı ve güncel manga okuma platformu. Topluluğun gücüyle büyüyoruz.

@@ -223,7 +223,7 @@ export async function updateMangaDetailsAction(formData: FormData) {
     const { error: uploadError } = await supabase.storage
       .from("covers")
       .upload(fileName, coverFile, { upsert: true });
-
+    console.error("Kapak Yükleme Hatası:", uploadError);
     if (uploadError) return { success: false, error: "Kapak yüklenemedi: " + uploadError.message };
 
     const { data: { publicUrl } } = supabase.storage.from("covers").getPublicUrl(fileName);

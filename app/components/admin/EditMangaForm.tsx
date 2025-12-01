@@ -13,18 +13,24 @@ type MangaDetails = {
   slug: string;
   author: string | null;
   description: string | null;
-  cover_url: string | null; // Kapak URL'ini de alıyoruz
+  cover_url: string | null;
 };
 
 export default function EditMangaForm({ manga }: { manga: MangaDetails }) {
   const [loading, setLoading] = useState(false);
-  const [preview, setPreview] = useState<string | null>(manga.cover_url); // Önizleme için state
+  const [preview, setPreview] = useState<string | null>(manga.cover_url);
   const router = useRouter();
 
   // Dosya seçilince önizlemeyi güncelle
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // 5MB boyut kontrolü (İsteğe bağlı, UX için iyi olur)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Dosya boyutu 5MB'dan küçük olmalıdır.");
+        e.target.value = ""; // Seçimi temizle
+        return;
+      }
       const url = URL.createObjectURL(file);
       setPreview(url);
     }
@@ -34,16 +40,27 @@ export default function EditMangaForm({ manga }: { manga: MangaDetails }) {
     e.preventDefault();
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
-    const res = await updateMangaDetailsAction(formData);
+    try {
+      const formData = new FormData(e.currentTarget);
+      
+      // Server Action'ı çağırıyoruz
+      const res = await updateMangaDetailsAction(formData);
 
-    if (res.success) {
-      toast.success("Manga bilgileri ve kapak güncellendi! ✅");
-      router.refresh();
-    } else {
-      toast.error("Hata: " + res.error);
+      if (res.success) {
+        toast.success("Manga bilgileri ve kapak güncellendi! ✅");
+        router.refresh();
+      } else {
+        // Sunucudan dönen mantıksal hatalar (örn: veritabanı hatası)
+        toast.error("Hata: " + res.error);
+      }
+    } catch (error) {
+      // Beklenmedik ağ hataları veya sunucu çökmesi burada yakalanır
+      console.error("Form gönderim hatası:", error);
+      toast.error("Bir hata oluştu. Dosya boyutu çok büyük olabilir veya sunucu yanıt vermiyor.");
+    } finally {
+      // Başarılı olsa da hatalı olsa da yükleniyor durumunu kapat
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (

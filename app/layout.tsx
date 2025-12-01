@@ -31,14 +31,14 @@ export async function generateMetadata(): Promise<Metadata> {
     .select('*')
     .single();
 
-  const siteName = settings?.site_name || "TalucScans";
+  const siteName = settings?.site_name || "TaluciScans";
   const siteDesc = settings?.site_description || "Türkçe Manga ve Webtoon Oku";
 
   return {
     metadataBase: new URL(BASE_URL),
     title: {
       default: `${siteName} - Türkçe Manga Oku`,
-      template: `%s | TalucScans`,
+      template: `%s | TaluciScans`,
     },
     description: siteDesc,
     keywords: ["manga oku", "türkçe manga", "webtoon oku", "manga indir", "online manga"],
